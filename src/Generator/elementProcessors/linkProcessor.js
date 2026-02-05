@@ -1,4 +1,5 @@
 import { getElementLabel } from '@lib/bricks';
+import { getLinkSettings } from '@generator/elementProcessors/linkUtils';
 
 /**
  * Processes link elements (a) for Bricks conversion
@@ -14,13 +15,7 @@ export const processLinkElement = (node, element, tag = 'a', context = {}) => {
 
   // Handle href attribute and link settings
   if (node.hasAttribute('href')) {
-    element.settings.link = {
-      type: 'external',
-      url: node.getAttribute('href') || '',
-      noFollow: node.getAttribute('rel')?.includes('nofollow') || false,
-      openInNewWindow: node.getAttribute('target') === '_blank',
-      noReferrer: node.getAttribute('rel')?.includes('noreferrer') || false
-    };
+    element.settings.link = getLinkSettings(node);
   }
 
   // Handle text content directly

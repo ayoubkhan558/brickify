@@ -325,8 +325,7 @@ img {
 }
 ```
 
-
-
+---
 
 ### 6. Inline Styles with other attributes
 
@@ -344,7 +343,7 @@ img {
 </div>
 ```
 
-
+---
 
 ### 7. Complex Selectors
 
@@ -384,5 +383,788 @@ img {
 /* Multiple selectors */
 .card[data-type="featured"], .card.special {
   font-weight: bold;
+}
+```
+
+---
+
+#### Test Case 7.2: Pseudo-classes and Pseudo-elements
+```html
+<div class="menu">
+  <ul class="menu-list">
+    <li class="menu-item active"><a href="#">Home</a></li>
+    <li class="menu-item"><a href="#">About</a></li>
+    <li class="menu-item has-submenu"><a href="#">Services</a></li>
+    <li class="menu-item"><a href="#">Contact</a></li>
+  </ul>
+  <button class="btn-primary">CTA Button</button>
+</div>
+```
+
+```css
+/* Pseudo-classes */
+.menu-item:first-child {
+  border-top: none;
+}
+
+.menu-item:last-child {
+  border-bottom: none;
+}
+
+.menu-item:hover {
+  background-color: #f0f0f0;
+}
+
+.btn-primary:active {
+  transform: translateY(2px);
+}
+
+.btn-primary:focus {
+  outline: 2px dashed #333;
+}
+
+/* Pseudo-elements */
+.menu-item.has-submenu::after {
+  content: "▼";
+  font-size: 10px;
+  margin-left: 5px;
+}
+
+.btn-primary::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background: red;
+  margin-right: 5px;
+}
+```
+
+**Expected Output**: Pseudo-classes mapped to states, pseudo-elements handled (likely as custom CSS or specific Bricks settings if supported).
+
+---
+
+#### Test Case 7.3: Compound and Multiple Selectors
+```html
+<div class="alert alert-success">Success Message</div>
+<div class="alert alert-warning">Warning Message</div>
+<div class="alert alert-error">Error Message</div>
+<div class="status-icon success"></div>
+```
+
+```css
+/* Compound Selectors */
+.alert.alert-success {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.alert.alert-warning {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+/* Multiple Selectors */
+.alert.alert-error, .status-icon.error {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+/* Complex + Compound */
+.alert.alert-success > .icon {
+  fill: green;
+}
+```
+
+**Expected Output**: Styles correctly applied to the specific compound classes.
+
+---
+
+### 8. CSS Variables
+
+#### Test Case 8.1: CSS Variables in Selectors
+```html
+<div class="theme-card">
+  <h3>Themed Card</h3>
+  <p>This card uses CSS variables.</p>
+</div>
+```
+
+```css
+:root {
+  --card-bg: #ffffff;
+  --card-padding: 24px;
+  --card-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  --primary-color: #3498db;
+}
+
+.theme-card {
+  background-color: var(--card-bg);
+  padding: var(--card-padding);
+  box-shadow: var(--card-shadow);
+  border-left: 4px solid var(--primary-color);
+}
+
+.theme-card h3 {
+  color: var(--primary-color);
+}
+```
+
+**Expected Output**: CSS variables preserved and used in values.
+
+---
+
+### 9. Visual Effects & Modern CSS
+
+#### Test Case 9.1: Gradients & Multiple Backgrounds
+```html
+<div class="gradient-box">
+  <div class="overlay">Content</div>
+</div>
+```
+
+```css
+.gradient-box {
+  width: 100%;
+  height: 300px;
+  background-image: linear-gradient(to right, #ff7e5f, #feb47b), url('pattern.png');
+  background-size: cover, auto;
+  background-blend-mode: overlay;
+}
+```
+
+#### Test Case 9.2: Backdrop Filters & Glassmorphism
+```html
+<div class="glass-container">
+  <div class="glass-card">
+    Glassmorphism Effect
+  </div>
+</div>
+```
+
+```css
+.glass-container {
+  background: url('bg.jpg');
+  padding: 50px;
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+}
+```
+
+#### Test Case 9.3: Complex Shadows
+```html
+<button class="neon-btn">Neon Button</button>
+```
+
+```css
+.neon-btn {
+  background: transparent;
+  border: 2px solid #0ff;
+  color: #0ff;
+  box-shadow: 0 0 5px #0ff, 0 0 10px #0ff, inset 0 0 5px #0ff;
+}
+```
+
+---
+
+### 10. Advanced Layouts
+
+#### Test Case 10.1: Sticky Positioning
+```html
+<div class="scroll-container">
+  <div class="sticky-header">Sticky Header</div>
+  <div class="content">Long content...</div>
+</div>
+```
+
+```css
+.scroll-container {
+  height: 200px;
+  overflow-y: scroll;
+}
+
+.sticky-header {
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 10;
+  border-bottom: 2px solid #eee;
+}
+```
+
+#### Test Case 10.2: CSS Columns (Masonry-like)
+```html
+<div class="masonry-grid">
+  <div class="card">Item 1</div>
+  <div class="card">Item 2</div>
+  <div class="card">Item 3 long text...</div>
+  <div class="card">Item 4</div>
+</div>
+```
+
+```css
+.masonry-grid {
+  column-count: 3;
+  column-gap: 20px;
+}
+
+.masonry-grid .card {
+  break-inside: avoid-column;
+  margin-bottom: 20px;
+  background: #f0f0f0;
+}
+```
+
+#### Test Case 10.3: Aspect Ratio Cards
+```html
+<div class="card-video">
+  <iframe src="..."></iframe>
+</div>
+```
+
+```css
+.card-video {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: black;
+}
+```
+
+---
+
+### 11. Interactive & Media
+
+#### Test Case 11.1: Scroll Snap Carousel
+```html
+<div class="carousel">
+  <div class="slide">1</div>
+  <div class="slide">2</div>
+  <div class="slide">3</div>
+</div>
+```
+
+```css
+.carousel {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+}
+
+.slide {
+  flex: 0 0 100%;
+  scroll-snap-align: center;
+  height: 200px;
+  background: #ddd;
+}
+```
+
+#### Test Case 11.2: Object Fit & Position
+```html
+<div class="avatar-frame">
+  <img src="avatar.jpg" class="avatar-img" />
+</div>
+```
+
+```css
+.avatar-frame {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+}
+```
+
+#### Test Case 11.3: Details & Summary (Accordion)
+```html
+<details class="accordion">
+  <summary class="accordion-header">Click to Expand</summary>
+  <div class="accordion-content">
+    <p>Hidden content executed via native HTML element.</p>
+  </div>
+</details>
+```
+
+```css
+.accordion {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.accordion-header {
+  padding: 10px;
+  background: #f9f9f9;
+  cursor: pointer;
+}
+
+.accordion[open] .accordion-header {
+  border-bottom: 1px solid #ccc;
+}
+```
+
+---
+
+### 12. Animations
+
+#### Test Case 12.1: Keyframe Animations
+```html
+<div class="spinner"></div>
+```
+
+```css
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #3498db;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+```
+
+#### Test Case 12.2: Media Queries
+```html
+<div class="box">Content</div>
+```
+
+```css
+.box {
+  padding: 40px;
+  background: lightblue;
+  font-size: 24px;
+  text-align: center;
+}
+
+/* Media query */
+@media (max-width: 600px) {
+  .box {
+    background: lightcoral;
+    font-size: 18px;
+  }
+}
+```
+
+---
+
+### 13. CSS Functions & Calculations
+
+#### Test Case 13.1: Mathematical Functions
+```html
+<div class="fluid-container">
+  <div class="fluid-text">Responsive Text</div>
+</div>
+```
+
+```css
+.fluid-container {
+  width: min(100% - 20px, 1200px);
+  padding: clamp(1rem, 2vw, 3rem);
+  margin: 0 auto;
+}
+
+.fluid-text {
+  font-size: clamp(16px, 4vw, 32px);
+  width: calc(100% / 3 - 20px);
+}
+```
+
+---
+
+### 14. Specificity & Overrides
+
+#### Test Case 14.1: Specificity Conflicts & !important
+```html
+<div id="content" class="main-content">
+  <p class="text" style="color: blue;">Text Content</p>
+</div>
+```
+
+```css
+/* ID has higher specificity */
+#content .text {
+  color: red;
+}
+
+/* Class has lower specificity */
+.main-content .text {
+  color: green;
+}
+
+/* !important override */
+.text {
+  color: purple !important;
+}
+```
+
+#### Test Case 14.2: Shorthand vs Longhand
+```html
+<div class="box-model">Box</div>
+```
+
+```css
+.box-model {
+  /* Longhand */
+  border-width: 1px;
+  border-style: solid;
+  border-color: black;
+  
+  /* Shorthand override */
+  border: 2px dashed red;
+  
+  /* Partial override */
+  border-bottom-color: blue;
+}
+```
+
+---
+
+### 15. Global Styles & Inheritance
+
+#### Test Case 15.1: Global Reset & Inheritance
+```html
+<div class="parent">
+  <div class="child">Inherited Styles</div>
+</div>
+```
+
+```css
+/* Global Reset */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: sans-serif;
+  color: #333;
+}
+
+.parent {
+  color: #666; /* Should inherit to child */
+  border: 1px solid #ccc; /* Should NOT inherit */
+}
+```
+
+---
+
+### 16. State Selectors
+
+#### Test Case 16.1: Form States
+```html
+<form>
+  <input type="text" disabled value="Disabled Input">
+  <input type="checkbox" checked>
+  <input type="text" readonly value="Readonly">
+  <input type="text" required>
+</form>
+```
+
+```css
+input:disabled {
+  background: #eee;
+  cursor: not-allowed;
+}
+
+input:checked {
+  accent-color: blue;
+}
+
+input:read-only {
+  border-color: #999;
+}
+
+input:focus-visible {
+  outline: 2px solid blue;
+  outline-offset: 2px;
+}
+```
+
+#### Test Case 16.2: Target & Focus Within
+```html
+<div id="target-div">Target Me</div>
+<div class="container">
+  <input type="text" placeholder="Focus me">
+</div>
+```
+
+```css
+:target {
+  background: yellow;
+  border: 2px solid orange;
+}
+
+.container:focus-within {
+  box-shadow: 0 0 10px rgba(0,0,0,0.2);
+}
+```
+
+---
+
+### 17. Structural Selectors
+
+#### Test Case 17.1: Nth and Only Child
+```html
+<ul class="list">
+  <li>Item 1</li>
+  <li>Item 2</li>
+  <li>Item 3</li>
+  <li>Item 4</li>
+</ul>
+<div class="solo">
+  <p>Only Paragraph</p>
+</div>
+```
+
+```css
+li:nth-of-type(odd) {
+  background: #f9f9f9;
+}
+
+li:nth-of-type(3n) {
+  color: blue;
+}
+
+p:only-child {
+  font-weight: bold;
+  color: red;
+}
+```
+
+---
+
+### 18. Modern Functional Selectors
+
+#### Test Case 18.1: :is() and :where()
+```html
+<header>
+  <h1>Title</h1>
+  <p>Subtitle</p>
+</header>
+<article>
+  <h1>Article Title</h1>
+  <p>Article Text</p>
+</article>
+```
+
+```css
+/* Matches h1 in both header and article */
+:is(header, article) h1 {
+  font-size: 2em;
+  color: darkblue;
+}
+
+/* Zero specificity wrapper */
+:where(header, article) p {
+  color: #666;
+}
+```
+
+---
+
+### 19. Pseudo-elements
+
+#### Test Case 19.1: Input Styling
+```html
+<input type="text" placeholder="Type here...">
+<p class="selectable">Select this text</p>
+<ul>
+  <li>List Item</li>
+</ul>
+```
+
+```css
+::placeholder {
+  color: #aaa;
+  font-style: italic;
+}
+
+::selection {
+  background: #ffeb3b;
+  color: black;
+}
+
+li::marker {
+  color: red;
+  content: "➤ ";
+}
+```
+
+---
+
+### 20. Advanced Positioning
+
+#### Test Case 20.1: Absolute & Fixed with Z-Index
+```html
+<div class="relative-parent">
+  <div class="absolute-child">Absolute</div>
+  <div class="absolute-child z-top">Top Layer</div>
+</div>
+<div class="fixed-element">Fixed Bottom Right</div>
+```
+
+```css
+.relative-parent {
+  position: relative;
+  height: 200px;
+  border: 1px solid #ccc;
+  z-index: 1; /* New stacking context */
+}
+
+.absolute-child {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: red;
+  z-index: 5;
+}
+
+.z-top {
+  top: 20px;
+  left: 20px;
+  background: blue;
+  z-index: 10;
+}
+
+.fixed-element {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: #333;
+  color: white;
+  padding: 10px;
+}
+```
+
+---
+
+### 21. Typography & Web Fonts
+
+#### Test Case 21.1: Font Face & Weights
+```html
+<h1 class="font-custom">Custom Font Title</h1>
+<p class="font-light">Light Text</p>
+<p class="font-black">Heavy Text</p>
+```
+
+```css
+@font-face {
+  font-family: 'MyCustomFont';
+  src: url('font.woff2') format('woff2');
+  font-weight: normal;
+}
+
+@font-face {
+  font-family: 'Roboto';
+  src: url('roboto.woff2');
+  font-weight: 100 900; /* Variable font range */
+}
+
+.font-custom {
+  font-family: 'MyCustomFont', sans-serif;
+}
+
+.font-light {
+  font-family: 'Roboto';
+  font-weight: 300;
+}
+
+.font-black {
+  font-family: 'Roboto';
+  font-weight: 900;
+}
+```
+
+---
+
+### 22. Special Elements & Overflow
+
+#### Test Case 22.1: SVG and Iframes
+```html
+<div class="icon-wrapper">
+  <svg class="icon" viewBox="0 0 24 24">
+    <path d="M12 2L2 22h20L12 2z" />
+  </svg>
+</div>
+<div class="frame-wrapper">
+  <iframe src="about:blank"></iframe>
+</div>
+```
+
+```css
+.icon {
+  width: 48px;
+  height: 48px;
+  fill: currentColor;
+  stroke: black;
+  stroke-width: 2;
+}
+
+.frame-wrapper iframe {
+  width: 100%;
+  height: 300px;
+  border: none;
+  overflow: hidden;
+}
+```
+
+#### Test Case 22.2: Overflow Handling
+```html
+<div class="overflow-box">
+  <p>Very long content that should scroll...</p>
+</div>
+```
+
+```css
+.overflow-box {
+  width: 200px;
+  height: 100px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+```
+
+---
+
+### 23. Edge Cases
+
+#### Test Case 23.1: Invalid & Broken CSS
+```html
+<div class="error-test">Error Handling</div>
+```
+
+```css
+.error-test {
+  color: blue;
+  /* Missing semicolon */
+  font-size: 20px
+  background: red; /* Might be ignored due to above error */
+  
+  /* Invalid property */
+  text-align: middle; /* Invalid value */
+  
+  /* Broken syntax */
+  margin: 10px 20px 30px; /* Missing 4th value? (Valid, optional) */
+  padding: ; /* Empty value */
 }
 ```

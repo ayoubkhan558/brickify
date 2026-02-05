@@ -29,6 +29,7 @@ A powerful web-based tool that converts HTML, CSS, and JavaScript code into Bric
 - **Text**: Headings (H1-H6), Paragraphs, Spans, Blockquotes
 - **Media**: Images, Videos, Audio, SVG
 - **Forms**: Complete form handling with labels, inputs, selects, textareas
+  - **Auto-wrapping**: Standalone form inputs automatically wrapped in form elements
 - **Navigation**: Nested nav with dropdown support
 - **Tables**: Full table structure preservation
 - **Lists**: Ordered and unordered lists
@@ -159,6 +160,7 @@ e2e/ # End-to-end tests
 - AI code generation integration
 - Multiple AI provider support
 - Native browser API selector matching (element.matches())
+- **Standalone form input auto-wrapping** – Automatically wraps standalone inputs in form elements
 
 ### Planned
 
