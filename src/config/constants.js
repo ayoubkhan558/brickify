@@ -4,7 +4,7 @@
  */
 
 // Last update date
-export const LAST_UPDATE_DATE = '1 January, 2026';
+export const LAST_UPDATE_DATE = '5 February, 2026';
 
 // Bricks Builder version this tool targets
 export const BRICKS_VERSION = '2.2';
@@ -31,6 +31,59 @@ export const SUPPORTED_TAGS = {
     MEDIA: ['img', 'video', 'audio', 'svg'],
     MISC: ['a', 'canvas', 'details', 'summary', 'dialog', 'meter', 'progress', 'script']
 };
+
+// HTML attribute groups
+export const GLOBAL_ATTRIBUTES = [
+    'id',
+    'class',
+    'style',
+    'title',
+    'role',
+    'tabindex',
+    'accesskey',
+    'contenteditable',
+    'contextmenu',
+    'dir',
+    'draggable',
+    'hidden',
+    'lang',
+    'spellcheck',
+    'translate'
+];
+
+export const ELEMENT_SPECIFIC_ATTRIBUTES = {
+    a: ['href', 'target', 'rel', 'hreflang', 'referrerpolicy', 'ping', 'download', 'media', 'type'],
+    img: ['src', 'alt', 'width', 'height', 'loading', 'decoding', 'crossorigin', 'referrerpolicy', 'usemap', 'ismap', 'sizes', 'srcset', 'title', 'longdesc'],
+    form: ['action', 'method', 'enctype', 'autocomplete', 'novalidate', 'target', 'name', 'accept-charset'],
+    input: ['type', 'name', 'value', 'placeholder', 'required', 'disabled', 'checked', 'readonly', 'multiple', 'min', 'max', 'step', 'minlength', 'maxlength', 'pattern', 'size', 'autocomplete', 'form'],
+    textarea: ['name', 'rows', 'cols', 'minlength', 'maxlength', 'placeholder', 'required', 'disabled', 'readonly', 'wrap', 'form'],
+    select: ['name', 'multiple', 'required', 'disabled', 'size', 'form'],
+    option: ['value', 'label', 'selected', 'disabled'],
+    button: ['type', 'name', 'value', 'disabled', 'form', 'formaction', 'formenctype', 'formmethod', 'formnovalidate', 'formtarget'],
+    video: ['src', 'poster', 'preload', 'autoplay', 'loop', 'muted', 'controls', 'crossorigin', 'referrerpolicy', 'playsinline', 'width', 'height'],
+    audio: ['src', 'preload', 'autoplay', 'loop', 'muted', 'controls', 'crossorigin']
+};
+
+export const BOOLEAN_ATTRIBUTES = [
+    'hidden',
+    'required',
+    'disabled',
+    'checked',
+    'selected',
+    'multiple',
+    'readonly',
+    'autofocus',
+    'autoplay',
+    'controls',
+    'loop',
+    'muted',
+    'novalidate',
+    'open',
+    'reversed',
+    'formnovalidate',
+    'playsinline',
+    'ismap'
+];
 
 // Alert/notification class patterns
 export const ALERT_CLASS_PATTERNS = [

@@ -13,6 +13,7 @@ import { processSvgElement } from '@generator/elementProcessors/svgProcessor';
 import { processHeadingElement } from '@generator/elementProcessors/headingProcessor';
 import { processListElement } from '@generator/elementProcessors/listProcessor';
 import { processLinkElement } from '@generator/elementProcessors/linkProcessor';
+import { getLinkSettings } from '@generator/elementProcessors/linkUtils';
 import { processButtonElement } from '@generator/elementProcessors/buttonProcessor';
 import { processMiscElement } from '@generator/elementProcessors/miscProcessor';
 import { processStructureLayoutElement } from '@generator/elementProcessors/structureLayoutProcessor';
@@ -282,11 +283,8 @@ const domNodeToBricks = (node, cssRulesMap = {}, parentId = '0', globalClasses =
       // Use div brick with link settings
       element.name = 'div';
       element.settings.tag = 'a';
-      // Set link settings (external or internal)
-      element.settings.link = {
-        type: node.getAttribute('href') && node.getAttribute('href').startsWith('/') ? 'external' : 'internal',
-        url: node.getAttribute('href') || ''
-      };
+      // Always treat href as a custom URL (including hash anchors)
+      element.settings.link = getLinkSettings(node);
       // Process and nest children
       Array.from(node.childNodes).forEach(childNode => {
         const childElement = domNodeToBricks(childNode, cssRulesMap, elementId, globalClasses, allElements, variables, options);
@@ -311,7 +309,34 @@ const domNodeToBricks = (node, cssRulesMap = {}, parentId = '0', globalClasses =
     processImageElement(node, element, tag, options.context || {});
   }
   else if (tag === 'button') {
-    processButtonElement(node, element, tag, options.context || {});
+    // Check if button is a form submit button outside of a form
+    const isSubmitButton = !node.closest('form') &&
+      (!node.getAttribute('type') || node.getAttribute('type').toLowerCase() === 'submit');
+
+    if (isSubmitButton) {
+      // Create a form element with this button as submit
+      const buttonText = node.textContent?.trim() || node.getAttribute('value')?.trim() || 'Submit';
+      element.name = 'form';
+      element.settings = {
+        fields: [],
+        submitButtonStyle: 'primary',
+        actions: ['email'],
+        successMessage: 'Message successfully sent. We will get back to you as soon as possible.',
+        emailSubject: 'Contact form request',
+        emailTo: 'admin_email',
+        fromName: 'bricks',
+        emailErrorMessage: 'Submission failed. Please reload the page and try to submit the form again.',
+        htmlEmail: true,
+        mailchimpPendingMessage: 'Please check your email to confirm your subscription.',
+        mailchimpErrorMessage: 'Sorry, but we could not subscribe you.',
+        sendgridErrorMessage: 'Sorry, but we could not subscribe you.',
+        showLabels: true,
+        submitButtonText: buttonText
+      };
+      element._skipChildren = true;
+    } else {
+      processButtonElement(node, element, tag, options.context || {});
+    }
   }
   else if (tag === 'svg') {
     processSvgElement(node, element, tag, options.context || {});
@@ -324,6 +349,39 @@ const domNodeToBricks = (node, cssRulesMap = {}, parentId = '0', globalClasses =
     Object.assign(element, formElement);
     // Mark that children have been processed to avoid double processing
     element._skipChildren = true;
+  }
+  // Handle standalone form inputs (not inside a form tag)
+  else if (['input', 'select', 'textarea'].includes(tag) && !node.closest('form')) {
+    const type = node.getAttribute('type')?.toLowerCase();
+
+    // Skip hidden inputs
+    if (type === 'hidden') {
+      return null;
+    }
+
+    // Create a wrapper form element for standalone inputs
+    const field = processFormField(node, node, options.context || {});
+
+    if (field) {
+      element.name = 'form';
+      element.settings = {
+        fields: [field],
+        submitButtonStyle: 'primary',
+        actions: ['email'],
+        successMessage: 'Message successfully sent. We will get back to you as soon as possible.',
+        emailSubject: 'Contact form request',
+        emailTo: 'admin_email',
+        fromName: 'bricks',
+        emailErrorMessage: 'Submission failed. Please reload the page and try to submit the form again.',
+        htmlEmail: true,
+        mailchimpPendingMessage: 'Please check your email to confirm your subscription.',
+        mailchimpErrorMessage: 'Sorry, but we could not subscribe you.',
+        sendgridErrorMessage: 'Sorry, but we could not subscribe you.',
+        showLabels: true,
+        submitButtonText: 'Submit'
+      };
+      element._skipChildren = true;
+    }
   }
   else if (['table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td'].includes(tag)) {
     const processedElement = processTableElement(node, element, tag, options.context || {});

@@ -1,21 +1,24 @@
 import { generateId } from '@lib/bricks';
+import { getLinkSettings, normalizeTargetValue } from '@generator/elementProcessors/linkUtils';
+import { GLOBAL_ATTRIBUTES, ELEMENT_SPECIFIC_ATTRIBUTES, BOOLEAN_ATTRIBUTES } from '@config/constants';
 
+const GLOBAL_ATTRIBUTES_SET = new Set(GLOBAL_ATTRIBUTES);
+const BOOLEAN_ATTRIBUTES_SET = new Set(BOOLEAN_ATTRIBUTES);
+const ALWAYS_SKIP_ATTRIBUTES = new Set(['id', 'class', 'style']);
+const TAG_SKIP_ATTRIBUTES = {
+  a: new Set(['href']),
+  img: new Set(['src', 'alt'])
+};
 
 /**
  * Processes element attributes into Bricks settings
  */
 export const processAttributes = (node, element, tag, options = {}) => {
-  const elementSpecificAttrs = ['id', 'class', 'href', 'src', 'alt', 'title', 'type', 'name', 'value', 'placeholder', 'required', 'disabled', 'checked', 'selected', 'multiple', 'rows', 'cols'];
   const customAttributes = [];
+  const tagSpecificAttributes = new Set(ELEMENT_SPECIFIC_ATTRIBUTES[tag] || []);
 
   if (tag === 'a' && node.hasAttribute('href')) {
-    element.settings.link = {
-      type: 'external',
-      url: node.getAttribute('href') || '',
-      noFollow: node.getAttribute('rel')?.includes('nofollow') || false,
-      openInNewWindow: node.getAttribute('target') === '_blank',
-      noReferrer: node.getAttribute('rel')?.includes('noreferrer') || false
-    };
+    element.settings.link = getLinkSettings(node);
   }
 
   if (node.hasAttribute('id')) {
@@ -43,20 +46,46 @@ export const processAttributes = (node, element, tag, options = {}) => {
     // Don't remove the style attribute here - let handleInlineStyles handle removal
   }
 
+  const normalizeAttributeValue = (attrName, rawValue) => {
+    if (attrName === 'target') {
+      return normalizeTargetValue(rawValue);
+    }
+
+    if (!BOOLEAN_ATTRIBUTES_SET.has(attrName)) {
+      return rawValue ?? '';
+    }
+
+    const normalized = String(rawValue ?? '').trim().toLowerCase();
+    if (normalized === '' || normalized === attrName.toLowerCase()) return 'true';
+    if (['false', '0', 'no', 'off'].includes(normalized)) return 'false';
+    if (['true', '1', 'yes', 'on'].includes(normalized)) return 'true';
+    return 'true';
+  };
+
+  const shouldSkipAttribute = (attrName) => {
+    if (attrName.startsWith('data-bricks-')) return true;
+    if (ALWAYS_SKIP_ATTRIBUTES.has(attrName)) return true;
+    return TAG_SKIP_ATTRIBUTES[tag]?.has(attrName) || false;
+  };
+
   // Process other attributes
   Array.from(node.attributes).forEach(attr => {
-    if (attr.name === 'style') return; // Skip style as it's already processed above
+    const attrName = attr.name.toLowerCase();
+    if (attrName === 'style') return; // Skip style as it's already processed above
+    if (shouldSkipAttribute(attrName)) return;
 
-    if (!elementSpecificAttrs.includes(attr.name) &&
-      !attr.name.startsWith('data-bricks-') &&
-      attr.name !== 'href' &&
-      !(tag === 'a' && ['target', 'rel'].includes(attr.name))) {
-      customAttributes.push({
-        id: generateId(),
-        name: attr.name,
-        value: attr.value
-      });
-    }
+    const isKnownAttribute = GLOBAL_ATTRIBUTES_SET.has(attrName) ||
+      tagSpecificAttributes.has(attrName) ||
+      attrName.startsWith('data-') ||
+      attrName.startsWith('aria-');
+
+    if (!isKnownAttribute && options?.context?.skipUnknownAttributes) return;
+
+    customAttributes.push({
+      id: generateId(),
+      name: attr.name,
+      value: normalizeAttributeValue(attrName, attr.value)
+    });
   });
 
   // Merge custom attributes with existing ones (don't overwrite)

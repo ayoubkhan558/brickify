@@ -1,6 +1,8 @@
 import { generateId } from '@lib/bricks';
 import { getElementLabel } from '@lib/bricks';
 import { matchCSSSelectorsPerClass, parseCssDeclarations } from '@generator/utils/cssParser';
+import { getLinkSettings } from '@generator/elementProcessors/linkUtils';
+import { processAttributes } from '@generator/elementProcessors/attributeProcessor';
 
 /**
  * Processes CSS classes for an element and creates global classes
@@ -124,13 +126,11 @@ export const processNavElement = (node, options = {}) => {
         children: [],
         settings: {
           text: link.textContent.trim(),
-          link: {
-            type: 'external',
-            url: link.getAttribute('href') || '#'
-          }
+          link: getLinkSettings(link)
         },
         label: 'Nav link'
       };
+      processAttributes(link, linkElement, 'a', options);
 
       // Assign global classes to link element
       if (linkGlobalClassIds.length > 0) {
@@ -189,13 +189,11 @@ export const processNavElement = (node, options = {}) => {
         children: [],
         settings: {
           text: link.textContent.trim(),
-          link: {
-            type: 'external',
-            url: link.getAttribute('href') || '#'
-          }
+          link: getLinkSettings(link)
         },
         label: 'Nav link'
       };
+      processAttributes(link, linkElement, 'a', options);
 
       // Assign global classes
       if (linkGlobalClassIds.length > 0) {
