@@ -21,6 +21,20 @@ export function generateId() {
 }
 
 /**
+ * Generates a short 6-character random ID matching Bricks Builder's native component ID format.
+ * Used for component IDs (cid), property IDs, and internal element IDs within components.
+ * @returns {string} 6-char lowercase string (e.g., 'celpmq', 'nscxfj')
+ */
+export function generateComponentId() {
+    const chars = 'abcdefghijklmnopqrstuvwxyz';
+    let result = '';
+    for (let i = 0; i < 6; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+}
+
+/**
  * Gets element label based on context and classes
  * @param {Node} node - DOM node
  * @param {string} tag - HTML tag name

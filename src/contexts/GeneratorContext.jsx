@@ -19,6 +19,15 @@ export function GeneratorProvider({ children }) {
   const [showNodeClass, setShowNodeClass] = useState(true);
   const [mergeNonClassSelectors, setMergeNonClassSelectors] = useState(false);
 
+  // Component Mode states
+  const [componentMode, setComponentMode] = useState(false);
+  const [componentAutoDetect, setComponentAutoDetect] = useState(true); // true = auto, false = manual
+  const [componentMeta, setComponentMeta] = useState({
+    category: '',
+    description: '',
+  });
+  const [componentManualProperties, setComponentManualProperties] = useState([]);
+
   // Dark-mode handling (matches Zustand logic)
   const prefersDark = () => {
     if (typeof localStorage !== 'undefined') {
@@ -34,6 +43,7 @@ export function GeneratorProvider({ children }) {
 
   const toggleDarkMode = () => setIsDarkMode(prev => !prev);
   const toggleMinified = () => setIsMinified(prev => !prev);
+  const toggleComponentMode = () => setComponentMode(prev => !prev);
 
   // Keep <html> data-theme & localStorage in sync
   useEffect(() => {
@@ -60,6 +70,12 @@ export function GeneratorProvider({ children }) {
     showNodeClass, setShowNodeClass,
     mergeNonClassSelectors, setMergeNonClassSelectors,
     isDarkMode, toggleDarkMode,
+
+    // component mode
+    componentMode, setComponentMode, toggleComponentMode,
+    componentAutoDetect, setComponentAutoDetect,
+    componentMeta, setComponentMeta,
+    componentManualProperties, setComponentManualProperties,
   };
 
   return <GeneratorContext.Provider value={value}>{children}</GeneratorContext.Provider>;
@@ -70,3 +86,4 @@ export function useGenerator() {
   if (!ctx) throw new Error('useGenerator must be used within a GeneratorProvider');
   return ctx;
 }
+

@@ -7,7 +7,7 @@
 export const LAST_UPDATE_DATE = '5 February, 2026';
 
 // Bricks Builder version this tool targets
-export const BRICKS_VERSION = '2.2';
+export const BRICKS_VERSION = '2.3';
 
 // Source identifier for copied elements
 export const BRICKS_SOURCE = 'bricksCopiedElements';

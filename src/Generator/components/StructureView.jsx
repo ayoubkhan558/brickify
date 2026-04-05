@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   BsSquare,
   BsCardHeading,
@@ -45,6 +45,8 @@ import { DiMarkdown } from "react-icons/di";
 import { IoIosLink } from "react-icons/io";
 import { RxButton } from "react-icons/rx";
 import { FiChevronRight, FiChevronDown } from 'react-icons/fi';
+import { FaPlug } from 'react-icons/fa6';
+import { useGenerator } from '@contexts/GeneratorContext';
 import './StructureView.scss';
 
 
@@ -157,8 +159,40 @@ const ICONS = {
   default: <BsSquare />,
 };
 
+/**
+ * Determines the default exposable setting key for an element type.
+ */
+const getExposableSettingKey = (elementName) => {
+  const map = {
+    heading: 'text',
+    'text-basic': 'text',
+    'text-link': 'text',
+    image: 'image',
+    button: 'text',
+  };
+  return map[elementName] || null;
+};
+
 
 const StructureView = ({ data, globalClasses, activeIndex, showNodeClass }) => {
+  const {
+    componentMode,
+    componentAutoDetect,
+    componentManualProperties,
+    setComponentManualProperties,
+  } = useGenerator();
+
+  // Build a set of element IDs that are already mapped as properties
+  const mappedElementIds = useMemo(() => {
+    const ids = new Set();
+    if (componentManualProperties) {
+      componentManualProperties.forEach(mp => {
+        if (mp.elementId) ids.add(mp.elementId);
+      });
+    }
+    return ids;
+  }, [componentManualProperties]);
+
   if (!data || data.length === 0) {
     return null;
   }
@@ -180,9 +214,7 @@ const StructureView = ({ data, globalClasses, activeIndex, showNodeClass }) => {
   const getElementInfo = (element) => {
     const info = {
       icon: ICONS[element.name] || ICONS.default,
-      // icon: ICONS[element.settings.tag] || ICONS.default,
       label: element.name || 'div',
-      // label: element.settings.tag || 'div',
       className: '',
     };
 
@@ -196,15 +228,62 @@ const StructureView = ({ data, globalClasses, activeIndex, showNodeClass }) => {
     return info;
   };
 
+  const handleExposeAsProperty = (element) => {
+    const settingKey = getExposableSettingKey(element.name);
+    if (!settingKey) return;
+
+    // Check if already mapped
+    if (mappedElementIds.has(element.id)) {
+      // Remove the mapping
+      setComponentManualProperties(prev =>
+        prev.filter(mp => mp.elementId !== element.id)
+      );
+      return;
+    }
+
+    // Generate a label from the element
+    const label = (element.label || element.name)
+      .replace(/__/g, ' ')
+      .replace(/--/g, ' ')
+      .replace(/[-_]/g, ' ')
+      .replace(/\b\w/g, c => c.toUpperCase())
+      .trim();
+
+    const defaultValue = element.settings?.[settingKey] || '';
+
+    setComponentManualProperties(prev => [
+      ...prev,
+      {
+        label,
+        type: settingKey === 'image' ? 'image' : settingKey === 'link' ? 'link' : 'text',
+        default: defaultValue,
+        elementId: element.id,
+        settingKey,
+      }
+    ]);
+  };
+
   const TreeNode = ({ node }) => {
     const [isOpen, setIsOpen] = useState(true);
     const hasChildren = node.children.length > 0;
     const { icon, label, className } = getElementInfo(node);
     const isActive = node._order === activeIndex;
 
+    const isExposable = componentMode && !componentAutoDetect && getExposableSettingKey(node.name);
+    const isMapped = mappedElementIds.has(node.id);
+
+    // In auto-detect mode, check if this element type would be auto-detected
+    const isAutoDetected = componentMode && componentAutoDetect && getExposableSettingKey(node.name);
+
+    const nodeClasses = [
+      'node-content',
+      isActive ? 'active' : '',
+      (isMapped || isAutoDetected) ? 'has-property' : '',
+    ].filter(Boolean).join(' ');
+
     return (
       <li className={isActive ? 'active' : ''}>
-        <div className={`node-content${isActive ? ' active' : ''}`} onClick={() => hasChildren && setIsOpen(!isOpen)}>
+        <div className={nodeClasses} onClick={() => hasChildren && setIsOpen(!isOpen)}>
           <span className={`node-toggle ${hasChildren ? 'has-child' : 'no-child'}`}>
             {hasChildren ? (isOpen ? <FiChevronDown /> : <FiChevronRight />) : <span className="no-toggle"></span>}
           </span>
@@ -213,6 +292,41 @@ const StructureView = ({ data, globalClasses, activeIndex, showNodeClass }) => {
             <span className="node-class"> {className} </span>
           ) : (
             <span className="node-tag">&lt;{label} /&gt;</span>
+          )}
+
+          {/* Property indicator badge */}
+          {(isMapped || isAutoDetected) && (
+            <span className="node-property-badge">
+              <FaPlug size={8} /> prop
+            </span>
+          )}
+
+          {/* Manual mode: Expose as Property button */}
+          {isExposable && !isMapped && (
+            <button
+              className="expose-property-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleExposeAsProperty(node);
+              }}
+              title="Expose as Component Property"
+            >
+              <FaPlug size={9} /> Expose
+            </button>
+          )}
+
+          {/* Manual mode: Already exposed indicator with click-to-remove */}
+          {isExposable && isMapped && (
+            <button
+              className="expose-property-btn exposed"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleExposeAsProperty(node);
+              }}
+              title="Remove property mapping"
+            >
+              <FaPlug size={9} /> Mapped
+            </button>
           )}
         </div>
         {hasChildren && isOpen && (

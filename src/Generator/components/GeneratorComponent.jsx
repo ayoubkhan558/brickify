@@ -13,6 +13,7 @@ import LimitationsModal from '@components/LimitationsModal/index';
 import InfoPanel from '@components/InfoPanel/index';
 import AISettings from '@components/AISettings/index';
 import Tooltip from '@components/Tooltip';
+import ComponentMode from '@components/ComponentMode';
 import logger from '@lib/logger';
 
 import { useGenerator } from '@contexts/GeneratorContext';
@@ -53,7 +54,12 @@ const GeneratorComponent = () => {
     includeJs,
     setIncludeJs,
     showJsonPreview,
-    setShowJsonPreview
+    setShowJsonPreview,
+    // Component mode
+    componentMode,
+    componentAutoDetect,
+    componentMeta,
+    componentManualProperties,
   } = useGenerator();
 
   const [activeTagIndex, setActiveTagIndex] = useState(0);
@@ -126,7 +132,13 @@ const GeneratorComponent = () => {
           context: {
             showNodeClass,
             inlineStyleHandling,
-            mergeNonClassSelectors
+            mergeNonClassSelectors,
+            // Component mode options
+            componentMode,
+            componentAutoDetect,
+            componentCategory: componentMeta.category,
+            componentDescription: componentMeta.description,
+            componentManualProperties: !componentAutoDetect ? componentManualProperties : [],
           }
         });
         const json = isMinified
@@ -144,7 +156,8 @@ const GeneratorComponent = () => {
       }, err);
       // Optionally, you can set an error state here to show in the UI
     }
-  }, [html, css, js, includeJs, inlineStyleHandling, isMinified, showNodeClass, mergeNonClassSelectors]);
+  }, [html, css, js, includeJs, inlineStyleHandling, isMinified, showNodeClass, mergeNonClassSelectors,
+      componentMode, componentAutoDetect, componentMeta, componentManualProperties]);
 
   return (
     <div className="generator">
@@ -304,14 +317,25 @@ const GeneratorComponent = () => {
               <div className="structure-panel__content">
                 {rightPanelView === 'layers' ? (
                   // Layers View
-                  output ? (
-                    <StructureView
-                      data={output ? JSON.parse(output).content : []}
-                      globalClasses={output ? JSON.parse(output).globalClasses : []}
-                      activeIndex={activeTagIndex}
-                      showNodeClass={showNodeClass}
-                    />
-                  ) : (
+                  output ? (() => {
+                    const parsed = JSON.parse(output);
+                    // In component mode, the full element tree is inside components[0].elements
+                    const layerData = componentMode && parsed.components?.length > 0
+                      ? parsed.components[0].elements
+                      : parsed.content;
+                    const componentProperties = componentMode && parsed.components?.length > 0
+                      ? parsed.components[0].properties
+                      : [];
+                    return (
+                      <StructureView
+                        data={layerData || []}
+                        globalClasses={parsed.globalClasses || []}
+                        activeIndex={activeTagIndex}
+                        showNodeClass={showNodeClass}
+                        componentProperties={componentProperties}
+                      />
+                    );
+                  })() : (
                     <div className="structure-placeholder">
                       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9e9e9e" strokeWidth="1.5">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2-2V8z"></path>
@@ -349,6 +373,9 @@ const GeneratorComponent = () => {
                   )
                 )}
               </div>
+
+              {/* Component Mode Settings Panel - fixed at bottom of right panel */}
+              <ComponentMode output={output} />
             </div>
           </Panel>
 
@@ -397,4 +424,4 @@ const GeneratorComponent = () => {
   );
 };
 
-export default GeneratorComponent;
+export default GeneratorComponent;
