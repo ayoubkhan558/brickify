@@ -13,10 +13,12 @@ import LimitationsModal from '@components/LimitationsModal/index';
 import InfoPanel from '@components/InfoPanel/index';
 import AISettings from '@components/AISettings/index';
 import Tooltip from '@components/Tooltip';
+import ComponentMode from '@components/ComponentMode';
 import logger from '@lib/logger';
 
 import { useGenerator } from '@contexts/GeneratorContext';
 import { createBricksStructure } from '../utils/bricksGenerator';
+import { stripAndExtract } from '../utils/htmlInputProcessor';
 import Preview from './Preview';
 import CodeEditor from '@generator/CodeEditor';
 import StructureView from './StructureView';
@@ -53,7 +55,17 @@ const GeneratorComponent = () => {
     includeJs,
     setIncludeJs,
     showJsonPreview,
-    setShowJsonPreview
+    setShowJsonPreview,
+    // Component mode
+    componentMode,
+    componentAutoDetect,
+    componentMeta,
+    componentManualProperties,
+    setComponentManualProperties,
+    componentRootIds,
+    setComponentRootIds,
+    activeComponentRootId,
+    setActiveComponentRootId,
   } = useGenerator();
 
   const [activeTagIndex, setActiveTagIndex] = useState(0);
@@ -63,6 +75,7 @@ const GeneratorComponent = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [rightPanelView, setRightPanelView] = useState('layers'); // 'layers' or 'json'
   const [isAIPromptOpen, setIsAIPromptOpen] = useState(false);
+  const [processingWarnings, setProcessingWarnings] = useState([]);
 
   // Custom hooks
   const formatting = useCodeFormatting();
@@ -71,6 +84,42 @@ const GeneratorComponent = () => {
   const aiGeneration = useAIGeneration(activeTab, html, css, js, setHtml, setCss, setJs, aiTemplates);
 
 
+
+  // Handle HTML input changes with automatic stripping and extraction
+  const handleHtmlChange = useCallback((newHtml) => {
+    const result = stripAndExtract(newHtml);
+    
+    // Set processed HTML
+    setHtml(result.bodyContent);
+    
+    // Reset component-related state when HTML changes
+    setComponentRootIds([]);
+    setComponentManualProperties([]);
+    setActiveComponentRootId(null);
+    
+    // Show warnings if any auto-corrections were made
+    if (result.warnings && result.warnings.length > 0) {
+      setProcessingWarnings(result.warnings);
+      // Auto-clear warnings after 5 seconds
+      setTimeout(() => setProcessingWarnings([]), 5000);
+    }
+    
+    // Append extracted CSS to existing CSS if any was found
+    if (result.extractedCss) {
+      setCss(prevCss => {
+        const existingCss = prevCss.trim();
+        return existingCss ? `${existingCss}\n\n/* Extracted from <style> tags */\n${result.extractedCss}` : result.extractedCss;
+      });
+    }
+    
+    // Append extracted JS to existing JS if any was found
+    if (result.extractedJs) {
+      setJs(prevJs => {
+        const existingJs = prevJs.trim();
+        return existingJs ? `${existingJs}\n\n// Extracted from <script> tags\n${result.extractedJs}` : result.extractedJs;
+      });
+    }
+  }, [setHtml, setCss, setJs, setComponentRootIds, setComponentManualProperties, setActiveComponentRootId]);
 
   // Generate Bricks structure from current inputs
   const previewHtml = useMemo(() => {
@@ -126,7 +175,14 @@ const GeneratorComponent = () => {
           context: {
             showNodeClass,
             inlineStyleHandling,
-            mergeNonClassSelectors
+            mergeNonClassSelectors,
+            // Component mode options
+            componentMode,
+            componentAutoDetect,
+            componentCategory: componentMeta.category,
+            componentDescription: componentMeta.description,
+            componentManualProperties: !componentAutoDetect ? componentManualProperties : [],
+            componentRootIds,
           }
         });
         const json = isMinified
@@ -144,7 +200,8 @@ const GeneratorComponent = () => {
       }, err);
       // Optionally, you can set an error state here to show in the UI
     }
-  }, [html, css, js, includeJs, inlineStyleHandling, isMinified, showNodeClass, mergeNonClassSelectors]);
+  }, [html, css, js, includeJs, inlineStyleHandling, isMinified, showNodeClass, mergeNonClassSelectors,
+      componentMode, componentAutoDetect, componentMeta, componentManualProperties, componentRootIds]);
 
   return (
     <div className="generator">
@@ -213,7 +270,7 @@ const GeneratorComponent = () => {
                     <div className="code-editor__pane active">
                       <CodeEditor
                         value={activeTab === 'html' ? html : activeTab === 'css' ? css : js}
-                        onChange={activeTab === 'html' ? setHtml : activeTab === 'css' ? setCss : setJs}
+                        onChange={activeTab === 'html' ? handleHtmlChange : activeTab === 'css' ? setCss : setJs}
                         language={activeTab}
                         placeholder={
                           activeTab === 'html'
@@ -235,6 +292,29 @@ const GeneratorComponent = () => {
                       />
                     </div>
                   </div>
+
+                  {/* Auto-Correction Warnings */}
+                  {processingWarnings.length > 0 && (
+                    <div className="processing-warnings" style={{
+                      padding: '12px 16px',
+                      background: 'rgba(255, 193, 7, 0.1)',
+                      borderLeft: '3px solid #ffc107',
+                      margin: '8px 0',
+                      borderRadius: '4px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                        <FaExclamationTriangle size={16} style={{ color: '#ffc107', marginTop: '2px', flexShrink: 0 }} />
+                        <div style={{ flex: 1 }}>
+                          <strong style={{ color: '#ffc107', display: 'block', marginBottom: '4px' }}>Auto-Corrected Issues:</strong>
+                          <ul style={{ margin: 0, paddingLeft: '20px', color: 'var(--color-text-2)', fontSize: '13px' }}>
+                            {processingWarnings.map((warning, index) => (
+                              <li key={index}>{warning}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Quick Action Tags - Show when code exists */}
                   <QuickActionTags
@@ -281,75 +361,98 @@ const GeneratorComponent = () => {
 
           <PanelResizeHandle className="resize-handle resize-handle--vertical" />
 
-          {/* Right Panel - Structure/JSON */}
+          {/* Right Panel - Structure/JSON + Component Mode */}
           <Panel defaultSize={20} minSize={15} maxSize={25} className="panel-right">
-            <div className="structure-panel">
-              <div className="structure-panel__header">
-                {/* Toggle between Layers and JSON */}
-                <div className="view-toggle">
-                  <button
-                    className={`view-toggle__btn ${rightPanelView === 'layers' ? 'active' : ''}`}
-                    onClick={() => setRightPanelView('layers')}
-                  >
-                    Layers
-                  </button>
-                  <button
-                    className={`view-toggle__btn ${rightPanelView === 'json' ? 'active' : ''}`}
-                    onClick={() => setRightPanelView('json')}
-                  >
-                    JSON
-                  </button>
+            <PanelGroup direction="vertical">
+              {/* Top: Structure/JSON View */}
+              <Panel defaultSize={70} minSize={30} className="panel-structure">
+                <div className="structure-panel">
+                  <div className="structure-panel__header">
+                    {/* Toggle between Layers and JSON */}
+                    <div className="view-toggle">
+                      <button
+                        className={`view-toggle__btn ${rightPanelView === 'layers' ? 'active' : ''}`}
+                        onClick={() => setRightPanelView('layers')}
+                      >
+                        Layers
+                      </button>
+                      <button
+                        className={`view-toggle__btn ${rightPanelView === 'json' ? 'active' : ''}`}
+                        onClick={() => setRightPanelView('json')}
+                      >
+                        JSON
+                      </button>
+                    </div>
+                  </div>
+                  <div className="structure-panel__content">
+                    {rightPanelView === 'layers' ? (
+                      // Layers View
+                      output ? (() => {
+                        const parsed = JSON.parse(output);
+                        // In component mode, use rawContent to show the original tree for selections
+                        const layerData = componentMode && parsed.rawContent
+                          ? parsed.rawContent
+                          : parsed.content;
+                        const componentProperties = componentMode && parsed.components?.length > 0
+                          ? parsed.components[0].properties
+                          : [];
+                        return (
+                          <StructureView
+                            data={layerData || []}
+                            globalClasses={parsed.globalClasses || []}
+                            activeIndex={activeTagIndex}
+                            showNodeClass={showNodeClass}
+                            componentProperties={componentProperties}
+                          />
+                        );
+                      })() : (
+                        <div className="structure-placeholder">
+                          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9e9e9e" strokeWidth="1.5">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                            <polyline points="10 9 9 9 8 9"></polyline>
+                          </svg>
+                          <p style={{ color: 'var(--color-text-2)', fontSize: 13, marginTop: 12 }}>No structure generated</p>
+                        </div>
+                      )
+                    ) : (
+                      // JSON View
+                      output ? (
+                        <div style={{ height: '100%', overflow: 'hidden' }}>
+                          <CodeEditor
+                            value={isMinified ? output : formatting.formatJson(output)}
+                            onChange={() => { }} // Read-only
+                            language="json"
+                            height="100%"
+                            readOnly={true}
+                            lineNumbers="off"
+                            minimap={false}
+                          />
+                        </div>
+                      ) : (
+                        <div className="structure-placeholder">
+                          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9e9e9e" strokeWidth="1.5">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <circle cx="12" cy="15" r="3"></circle>
+                          </svg>
+                          <p style={{ color: 'var(--color-text-2)', fontSize: 13, marginTop: 12 }}>No JSON output</p>
+                        </div>
+                      )
+                    )}
+                  </div>
                 </div>
-              </div>
-              <div className="structure-panel__content">
-                {rightPanelView === 'layers' ? (
-                  // Layers View
-                  output ? (
-                    <StructureView
-                      data={output ? JSON.parse(output).content : []}
-                      globalClasses={output ? JSON.parse(output).globalClasses : []}
-                      activeIndex={activeTagIndex}
-                      showNodeClass={showNodeClass}
-                    />
-                  ) : (
-                    <div className="structure-placeholder">
-                      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9e9e9e" strokeWidth="1.5">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2-2V8z"></path>
-                        <polyline points="14 2 14 8 20 8"></polyline>
-                        <line x1="16" y1="13" x2="8" y2="13"></line>
-                        <line x1="16" y1="17" x2="8" y2="17"></line>
-                        <polyline points="10 9 9 9 8 9"></polyline>
-                      </svg>
-                      <p style={{ color: 'var(--color-text-2)', fontSize: 13, marginTop: 12 }}>No structure generated</p>
-                    </div>
-                  )
-                ) : (
-                  // JSON View
-                  output ? (
-                    <div style={{ height: '100%', overflow: 'hidden' }}>
-                      <CodeEditor
-                        value={isMinified ? output : formatting.formatJson(output)}
-                        onChange={() => { }} // Read-only
-                        language="json"
-                        height="100%"
-                        readOnly={true}
-                        lineNumbers="off"
-                        minimap={false}
-                      />
-                    </div>
-                  ) : (
-                    <div className="structure-placeholder">
-                      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9e9e9e" strokeWidth="1.5">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2-2V8z"></path>
-                        <polyline points="14 2 14 8 20 8"></polyline>
-                        <circle cx="12" cy="15" r="3"></circle>
-                      </svg>
-                      <p style={{ color: 'var(--color-text-2)', fontSize: 13, marginTop: 12 }}>No JSON output</p>
-                    </div>
-                  )
-                )}
-              </div>
-            </div>
+              </Panel>
+
+              <PanelResizeHandle className="resize-handle resize-handle--horizontal" />
+
+              {/* Bottom: Component Mode Settings */}
+              <Panel defaultSize={30} minSize={20} maxSize={60} className="panel-component-mode">
+                <ComponentMode output={output} />
+              </Panel>
+            </PanelGroup>
           </Panel>
 
         </PanelGroup>

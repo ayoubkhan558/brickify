@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { FaCopy, FaChevronDown, FaDownload } from 'react-icons/fa';
 import { VscCopy } from 'react-icons/vsc';
+import { FaPlug } from 'react-icons/fa6';
+import { useGenerator } from '@contexts/GeneratorContext';
 import './Header.scss';
 
 const Header = ({
@@ -15,6 +17,7 @@ const Header = ({
     clipboard
 }) => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const { componentMode } = useGenerator();
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -90,6 +93,8 @@ const Header = ({
                             <span className="form-control__slider"></span>
                         </label>
                     </div>
+
+                    {/* Removed Component Mode Toggle */}
                 </div>
 
                 <div className="app-header__actions">
@@ -100,7 +105,13 @@ const Header = ({
                             disabled={typeof html !== 'string' || !html.trim()}
                         >
                             <VscCopy />
-                            {clipboard.isCopied ? 'Copied to Clipboard!' : 'Copy Bricks Structure'}
+                            {clipboard.isCopied
+                                ? 'Copied to Clipboard!'
+                                : componentMode
+                                    ? 'Copy Bricks Structure'
+                                    // ? 'Copy Component'
+                                    : 'Copy Bricks Structure'
+                            }
                         </button>
                         <button
                             className="button primary split-dropdown__toggle"
@@ -142,3 +153,4 @@ const Header = ({
 };
 
 export default Header;
+

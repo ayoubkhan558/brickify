@@ -6,6 +6,7 @@
 import { DomParser } from './DomParser.js';
 import { CssProcessor } from './CssProcessor.js';
 import { BricksBuilder } from './BricksBuilder.js';
+import { ComponentBuilder } from './ComponentBuilder.js';
 import { domNodeToBricks } from '@generator/utils/domToBricks';
 import { DEFAULT_GENERATOR_SETTINGS } from '@config/defaults';
 import { deepMerge } from '@lib/helpers';
@@ -15,6 +16,7 @@ export class ConverterService {
         this.domParser = new DomParser();
         this.cssProcessor = new CssProcessor();
         this.bricksBuilder = new BricksBuilder();
+        this.componentBuilder = new ComponentBuilder();
         this.options = deepMerge(DEFAULT_GENERATOR_SETTINGS, options);
     }
 
@@ -55,9 +57,30 @@ export class ConverterService {
                 this.bricksBuilder.addJavaScript(js, parentId);
             }
 
-            return this.bricksBuilder.getStructure();
+            const standardResult = this.bricksBuilder.getStructure();
+
+            // Step 6: If component mode, transform into component structure
+            if (conversionOptions.componentMode) {
+                const componentResult = this.componentBuilder.buildComponent(
+                    standardResult,
+                    {
+                        category: conversionOptions.componentCategory || '',
+                        description: conversionOptions.componentDescription || '',
+                        version: conversionOptions.componentVersion || '',
+                    },
+                    {
+                        autoDetect: conversionOptions.componentAutoDetect !== false,
+                        manualProperties: conversionOptions.componentManualProperties || [],
+                        componentRootIds: conversionOptions.componentRootIds || (conversionOptions.componentRootId ? [conversionOptions.componentRootId] : []),
+                    }
+                );
+                componentResult.rawContent = standardResult.content;
+                return componentResult;
+            }
+
+            return standardResult;
         } catch (error) {
-            logger.error('Conversion error:', error);
+            console.error('Conversion error:', error);
             throw error;
         }
     }
@@ -74,7 +97,7 @@ export class ConverterService {
         const globalClasses = [];
         const allElements = [];
 
-        Array.from(nodeList).forEach(node => {
+        Array.from(nodeList).forEach((node, index) => {
             const element = domNodeToBricks(
                 node,
                 cssContext.cssMap,
@@ -89,7 +112,8 @@ export class ConverterService {
                         inlineStyleHandling: options.inlineStyleHandling || 'class',
                         mergeNonClassSelectors: options.mergeNonClassSelectors || false
                     }
-                }
+                },
+                `root-${index}`
             );
 
             if (element) {
