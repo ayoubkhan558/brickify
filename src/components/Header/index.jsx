@@ -108,7 +108,8 @@ const Header = ({
                             {clipboard.isCopied
                                 ? 'Copied to Clipboard!'
                                 : componentMode
-                                    ? 'Copy Component'
+                                    ? 'Copy Bricks Structure'
+                                    // ? 'Copy Component'
                                     : 'Copy Bricks Structure'
                             }
                         </button>

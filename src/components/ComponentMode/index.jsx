@@ -3,6 +3,12 @@ import { useGenerator } from '@contexts/GeneratorContext';
 import { FaPlug, FaWandMagicSparkles, FaHandPointer, FaTrash } from 'react-icons/fa6';
 import { BsGearFill, BsBricks } from 'react-icons/bs';
 import PropertyConfigurator from './PropertyConfigurator';
+import { 
+  useElementToRootMapping, 
+  useDetectedProperties, 
+  useRootToComponentMapping,
+  usePropertyHandlers 
+} from './hooks';
 import './ComponentMode.scss';
 
 const ComponentMode = ({ output }) => {
@@ -24,73 +30,34 @@ const ComponentMode = ({ output }) => {
 
   const [showPropertyForm, setShowPropertyForm] = useState(false);
 
-  // Build a map: elementId -> componentRootId owner (from the raw layer tree)
-  const elementToRootId = useMemo(() => {
-    const map = new Map();
-    if (!layerElements || componentRootIds.length === 0) return map;
-    const elementMap = new Map(layerElements.map(el => [el.id, el]));
-    layerElements.forEach(el => {
-      let curr = el;
-      while (curr) {
-        if (componentRootIds.includes(curr.id)) {
-          map.set(el.id, curr.id);
-          break;
-        }
-        curr = (curr.parent && curr.parent !== 0 && curr.parent !== '0')
-          ? elementMap.get(curr.parent)
-          : null;
-      }
-    });
-    return map;
-  }, [layerElements, componentRootIds]);
+  // Custom hooks for logic separation
+  const elementToRootId = useElementToRootMapping(layerElements, componentRootIds);
+  const detectedPropertiesByRoot = useDetectedProperties(output, componentMode);
+  const rootIdToComponentId = useRootToComponentMapping(output, componentMode, componentRootIds);
 
-  // Auto-detected properties for the currently active component (parsed from JSON output)
-  const detectedPropertiesByRoot = useMemo(() => {
-    if (!output || !componentMode) return {};
-    try {
-      const parsed = JSON.parse(output);
-      const result = {};
-      (parsed.components || []).forEach(c => {
-        result[c.id] = c.properties || [];
-      });
-      return result;
-    } catch {
-      return {};
-    }
-  }, [output, componentMode]);
-
-  // Map the Bricks component `id` (cid) to the original componentRootId
-  // The cid in parsed.components matches the cid on instance elements in parsed.content
-  const cidToRootId = useMemo(() => {
-    if (!output || !componentMode) return {};
-    try {
-      const parsed = JSON.parse(output);
-      const result = {};
-      // Each instance element in content has { cid, ... }
-      (parsed.content || []).forEach(el => {
-        if (el.cid) result[el.cid] = el.cid; // cid maps to itself in component defs
-      });
-      return result;
-    } catch {
-      return {};
-    }
-  }, [output, componentMode]);
-
-  // Which component def maps to the active root? Look up by matching cid in output
+  // Get detected properties for the active component root
   const activeDetectedProperties = useMemo(() => {
     if (!activeComponentRootId || !output || !componentMode) return [];
-    try {
-      const parsed = JSON.parse(output);
-      // Find the instance in content that was originally the activeComponentRootId
-      // We can match by checking which component def's id is present
-      const components = parsed.components || [];
-      // Simply show all components' properties merged for auto mode for now
-      // (we can't reliably reverse-map cid -> original ID without extra bookkeeping)
-      return components[0]?.properties || [];
-    } catch {
-      return [];
+
+    // Find which component ID maps to this active root
+    const componentId = rootIdToComponentId[activeComponentRootId];
+    if (componentId && detectedPropertiesByRoot[componentId]) {
+      return detectedPropertiesByRoot[componentId];
     }
-  }, [output, componentMode, activeComponentRootId]);
+
+    // Fallback: if no mapping found, try to find by index
+    const rootIndex = componentRootIds.indexOf(activeComponentRootId);
+    if (rootIndex >= 0) {
+      try {
+        const parsed = JSON.parse(output);
+        return parsed.components?.[rootIndex]?.properties || [];
+      } catch {
+        return [];
+      }
+    }
+
+    return [];
+  }, [activeComponentRootId, output, componentMode, rootIdToComponentId, detectedPropertiesByRoot, componentRootIds]);
 
   // Manual properties scoped to the active component root
   const activeManualProperties = useMemo(() => {
@@ -99,32 +66,36 @@ const ComponentMode = ({ output }) => {
       mp => elementToRootId.get(mp.elementId) === activeComponentRootId
     );
   }, [componentManualProperties, activeComponentRootId, elementToRootId]);
-
+  
+  // Property handlers from custom hook
+  const {
+    handleSwitchToManual: switchToManual,
+    handleAddManualProperty: addManualProperty,
+    handleRemoveManualProperty,
+    handleUpdateManualProperty,
+  } = usePropertyHandlers({
+    activeDetectedProperties,
+    activeComponentRootId,
+    output,
+    componentManualProperties,
+    setComponentManualProperties,
+    setComponentAutoDetect,
+    elementToRootId,
+  });
+  
   const handleMetaChange = (field, value) => {
     setComponentMeta(prev => ({ ...prev, [field]: value }));
   };
 
   const handleAddManualProperty = (property) => {
-    setComponentManualProperties(prev => [...prev, property]);
+    addManualProperty(property);
     setShowPropertyForm(false);
   };
 
-  const handleRemoveManualProperty = (mp) => {
-    setComponentManualProperties(prev =>
-      prev.filter(p => p.elementId !== mp.elementId || p.settingKey !== mp.settingKey)
-    );
+  const handleSwitchToManual = () => {
+    switchToManual();
   };
-
-  const handleUpdateManualProperty = (mp, updates) => {
-    setComponentManualProperties(prev =>
-      prev.map(p =>
-        (p.elementId === mp.elementId && p.settingKey === mp.settingKey)
-          ? { ...p, ...updates }
-          : p
-      )
-    );
-  };
-
+  
   const handleReset = () => {
     setComponentRootIds([]);
     setComponentManualProperties([]);
@@ -136,6 +107,19 @@ const ComponentMode = ({ output }) => {
 
   const propertiesToShow = componentAutoDetect ? activeDetectedProperties : activeManualProperties;
 
+  // Debug logging (only in development)
+  if (process.env.NODE_ENV === 'development') {
+    console.log('ComponentMode Debug:', {
+      activeComponentRootId,
+      componentRootIds,
+      componentAutoDetect,
+      detectedPropertiesByRoot,
+      rootIdToComponentId,
+      activeDetectedProperties,
+      propertiesToShowCount: propertiesToShow.length
+    });
+  }
+
   // Get a display label for each root
   const getRootLabel = (rootId) => {
     const el = layerElements.find(e => e.id === rootId);
@@ -146,56 +130,36 @@ const ComponentMode = ({ output }) => {
 
   return (
     <div className="component-mode">
-      {/* Component Meta */}
-      <div className="component-mode__section">
-        <h4 className="component-mode__title">
-          <BsGearFill size={12} />
-          Component Meta
-        </h4>
-
-        <div className="component-mode__field">
-          <label>Category</label>
-          <input
-            type="text"
-            value={componentMeta.category}
-            onChange={(e) => handleMetaChange('category', e.target.value)}
-            placeholder="e.g. Section, Card, Hero"
-          />
-        </div>
-
-        <div className="component-mode__field">
-          <label>Description</label>
-          <input
-            type="text"
-            value={componentMeta.description}
-            onChange={(e) => handleMetaChange('description', e.target.value)}
-            placeholder="Brief description..."
-          />
-        </div>
-
-        <button className="component-mode__reset-btn" onClick={handleReset}>
-          Reset Component Selections
-        </button>
-      </div>
 
       {/* Component Selector — shown when multiple roots are selected */}
       {componentRootIds.length > 1 && (
-        <div className="component-mode__section">
+        <div className="component-mode__section" style={{ display: 'none' }}>
           <h4 className="component-mode__title">
             <BsBricks size={12} />
             Components ({componentRootIds.length})
           </h4>
           <div className="component-mode__root-list">
-            {componentRootIds.map(rootId => (
-              <button
-                key={rootId}
-                className={`component-root-chip ${activeComponentRootId === rootId ? 'active' : ''}`}
-                onClick={() => setActiveComponentRootId(rootId)}
-                title="Click to view this component's properties"
-              >
-                {getRootLabel(rootId)}
-              </button>
-            ))}
+            {componentRootIds.map(rootId => {
+              const isActive = activeComponentRootId === rootId;
+              const label = getRootLabel(rootId);
+              const hasProperties = detectedPropertiesByRoot[rootIdToComponentId[rootId]]?.length > 0;
+
+              return (
+                <button
+                  key={rootId}
+                  className={`component-root-chip ${isActive ? 'active' : ''}`}
+                  onClick={() => {
+                    setActiveComponentRootId(rootId);
+                    console.log('Selected component root:', rootId, 'Label:', label);
+                  }}
+                  title={`Click to view ${label}'s properties`}
+                >
+                  {label}
+                  {isActive && <span className="active-indicator">●</span>}
+                  {!isActive && hasProperties && <span className="has-props-indicator">◆</span>}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -222,7 +186,7 @@ const ComponentMode = ({ output }) => {
           </button>
           <button
             className={`detection-btn ${!componentAutoDetect ? 'active' : ''}`}
-            onClick={() => setComponentAutoDetect(false)}
+            onClick={handleSwitchToManual}
           >
             <FaHandPointer size={11} />
             Manual
@@ -293,6 +257,40 @@ const ComponentMode = ({ output }) => {
               + Add Property
             </button>
           )}
+        </div>
+      )}
+
+      {/* Component Meta - only show when at least one component root is selected */}
+      {componentRootIds.length > 0 && (
+        <div className="component-mode__section">
+          <h4 className="component-mode__title">
+            <BsGearFill size={12} />
+            Component Meta
+          </h4>
+
+          <div className="component-mode__field">
+            <label>Category</label>
+            <input
+              type="text"
+              value={componentMeta.category}
+              onChange={(e) => handleMetaChange('category', e.target.value)}
+              placeholder="e.g. Section, Card, Hero"
+            />
+          </div>
+
+          <div className="component-mode__field">
+            <label>Description</label>
+            <input
+              type="text"
+              value={componentMeta.description}
+              onChange={(e) => handleMetaChange('description', e.target.value)}
+              placeholder="Brief description..."
+            />
+          </div>
+
+          <button className="component-mode__reset-btn" onClick={handleReset}>
+            Reset Component Selections
+          </button>
         </div>
       )}
     </div>

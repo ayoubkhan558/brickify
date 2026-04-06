@@ -1,7 +1,77 @@
 /**
  * HTML Input Processor
- * Handles stripping of HTML structural tags and extraction of style/script tags
+ * Handles stripping of HTML structural tags, extraction of style/script tags,
+ * and auto-correction of common HTML/CSS errors
  */
+
+/**
+ * Auto-correct common CSS errors
+ * 
+ * @param {string} css - CSS content
+ * @returns {string} Corrected CSS content
+ */
+function autoCorrectCSS(css) {
+  if (!css || typeof css !== 'string') return css;
+
+  let corrected = css;
+
+  try {
+    // Fix missing closing braces for rules
+    // Count opening and closing braces
+    const openBraces = (corrected.match(/{/g) || []).length;
+    const closeBraces = (corrected.match(/}/g) || []).length;
+    
+    if (openBraces > closeBraces) {
+      const missingBraces = openBraces - closeBraces;
+      // Add missing closing braces at the end
+      corrected += '\n' + '}'.repeat(missingBraces);
+    }
+
+    // Fix missing semicolons before closing braces (common error)
+    corrected = corrected.replace(/([^;\s])\s*\n\s*}/g, '$1;\n}');
+
+    // Fix common indentation issues
+    corrected = corrected.replace(/^\t+/gm, (match) => '  '.repeat(match.length));
+
+    return corrected.trim();
+  } catch (error) {
+    console.error('Error auto-correcting CSS:', error);
+    return css;
+  }
+}
+
+/**
+ * Auto-correct common HTML errors
+ * 
+ * @param {string} html - HTML content
+ * @returns {string} Corrected HTML content
+ */
+function autoCorrectHTML(html) {
+  if (!html || typeof html !== 'string') return html;
+
+  let corrected = html;
+
+  try {
+    // Fix closing tags missing the final >
+    // Pattern: </tagname without > at the end (before whitespace or newline)
+    corrected = corrected.replace(/<\/\s*(\w+)\s*$/gm, '</$1>');
+    
+    // Fix opening tags with newlines in the middle that should have >
+    // Match: <tagname attrs\n where attrs doesn't contain >
+    corrected = corrected.replace(/<(\w+)([^>\n]*?)\s*\n/g, (match, tagName, attrs) => {
+      // Only add > if attrs doesn't already end with >
+      if (!attrs.trim().endsWith('>')) {
+        return `<${tagName}${attrs}>\n`;
+      }
+      return match;
+    });
+
+    return corrected.trim();
+  } catch (error) {
+    console.error('Error auto-correcting HTML:', error);
+    return html;
+  }
+}
 
 /**
  * Result object from processing HTML input
@@ -9,6 +79,7 @@
  * @property {string} bodyContent - Cleaned body content
  * @property {string} extractedCss - CSS extracted from <style> tags
  * @property {string} extractedJs - JS extracted from <script> tags
+ * @property {string[]} warnings - List of auto-corrections made
  */
 
 /**
@@ -20,7 +91,8 @@
  * @param {boolean} options.extractScripts - Extract JS from <script> tags (default: true)
  * @param {boolean} options.stripHead - Remove <head> section entirely (default: true)
  * @param {boolean} options.stripHtmlBodyTags - Strip <html>, <head>, <body> wrapper tags (default: true)
- * @returns {ProcessedHtmlResult} Processed HTML result
+ * @param {boolean} options.autoCorrect - Auto-correct common errors (default: true)
+ * @returns {ProcessedHtmlResult} Processed HTML result with any warnings
  */
 export function processHtmlInput(html, options = {}) {
   const {
@@ -28,6 +100,7 @@ export function processHtmlInput(html, options = {}) {
     extractScripts = true,
     stripHead = true,
     stripHtmlBodyTags = true,
+    autoCorrect = true,
   } = options;
 
   if (!html || typeof html !== 'string') {
@@ -35,21 +108,45 @@ export function processHtmlInput(html, options = {}) {
       bodyContent: html || '',
       extractedCss: '',
       extractedJs: '',
+      warnings: [],
     };
   }
 
   let processedHtml = html.trim();
   let extractedCss = '';
   let extractedJs = '';
+  const warnings = [];
 
   try {
+    // Auto-correct HTML errors if enabled
+    if (autoCorrect) {
+      const originalHtml = processedHtml;
+      processedHtml = autoCorrectHTML(processedHtml);
+      
+      // Detect if corrections were made
+      if (processedHtml !== originalHtml) {
+        warnings.push('Auto-corrected HTML errors (e.g., unclosed tags, malformed syntax)');
+      }
+    }
+
     // Extract <style> tags content if enabled
     if (extractStyles) {
       const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
       let match;
       
       while ((match = styleRegex.exec(processedHtml)) !== null) {
-        const cssContent = match[1].trim();
+        let cssContent = match[1].trim();
+        
+        // Auto-correct CSS errors if enabled
+        if (autoCorrect) {
+          const originalCss = cssContent;
+          cssContent = autoCorrectCSS(cssContent);
+          
+          if (cssContent !== originalCss) {
+            warnings.push('Auto-corrected CSS errors (e.g., missing closing braces, missing semicolons)');
+          }
+        }
+        
         if (cssContent) {
           extractedCss += (extractedCss ? '\n\n' : '') + cssContent;
         }
@@ -114,6 +211,7 @@ export function processHtmlInput(html, options = {}) {
       bodyContent: html,
       extractedCss: '',
       extractedJs: '',
+      warnings: [`Error during processing: ${error.message}`],
     };
   }
 
@@ -121,6 +219,7 @@ export function processHtmlInput(html, options = {}) {
     bodyContent: processedHtml,
     extractedCss,
     extractedJs,
+    warnings,
   };
 }
 
@@ -128,7 +227,7 @@ export function processHtmlInput(html, options = {}) {
  * Quick wrapper function for simple usage - just strip and extract
  * 
  * @param {string} html - Raw HTML input
- * @returns {ProcessedHtmlResult} Processed HTML result
+ * @returns {ProcessedHtmlResult} Processed HTML result with warnings
  */
 export function stripAndExtract(html) {
   return processHtmlInput(html, {
@@ -136,5 +235,6 @@ export function stripAndExtract(html) {
     extractScripts: true,
     stripHead: true,
     stripHtmlBodyTags: true,
+    autoCorrect: true,
   });
 }

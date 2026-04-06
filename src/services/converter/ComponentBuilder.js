@@ -80,6 +80,7 @@ export class ComponentBuilder {
 
         let currentContent   = [...content];
         const allComponentDefs = [];
+        this.allIdMappings = {}; // Store all ID mappings
 
         sortedRoots.forEach(rootId => {
             this.reset();
@@ -116,6 +117,13 @@ export class ComponentBuilder {
             // 5. Component definition object
             const componentDef = this.buildComponentDefinition(internalElements, meta);
             allComponentDefs.push(componentDef);
+            
+            // Store the ID mapping for this component (reverse: new ID -> old ID)
+            const reverseMapping = {};
+            this.idMapping.forEach((newId, oldId) => {
+                reverseMapping[newId] = oldId;
+            });
+            this.allIdMappings[this.componentId] = reverseMapping;
 
             // 6. Replace the subtree in currentContent with a lightweight instance element
             const instanceId = generateComponentId();
@@ -149,6 +157,7 @@ export class ComponentBuilder {
             components:    allComponentDefs,
             globalClasses: globalClasses || [],
             globalElements: globalElements || [],
+            idMappings:    this.allIdMappings || {}, // Include ID mappings for conversion
         };
     }
 
@@ -312,13 +321,35 @@ export class ComponentBuilder {
     }
 
     generatePropertyLabel(element, settingKey) {
-        const raw = (element.label || element.name || '')
+        // First try to get label from the element itself
+        let raw = (element.label || element.name || '')
             .replace(/^\./,  '')
             .replace(/__/g,  ' ')
             .replace(/--/g,  ' ')
             .replace(/[-_]/g,' ')
             .replace(/\b\w/g, c => c.toUpperCase())
             .trim();
+        
+        // If element label is empty or generic, try to get it from parent
+        if (!raw || raw === 'Div' || raw === 'Text-basic' || raw === 'Text') {
+            // Find parent element in internalElements
+            const parentEl = this.internalElements?.find(el => el.id === element.parent);
+            if (parentEl) {
+                const parentLabel = (parentEl.label || parentEl.name || '')
+                    .replace(/^\./,  '')
+                    .replace(/__/g,  ' ')
+                    .replace(/--/g,  ' ')
+                    .replace(/[-_]/g,' ')
+                    .replace(/\b\w/g, c => c.toUpperCase())
+                    .trim();
+                
+                // Use parent label if it's more descriptive
+                if (parentLabel && parentLabel !== 'Div' && parentLabel !== 'Text-basic' && parentLabel !== 'Text') {
+                    raw = parentLabel;
+                }
+            }
+        }
+        
         if (settingKey === 'link') return `${raw} Link`;
         return raw || 'Property';
     }

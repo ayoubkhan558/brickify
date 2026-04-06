@@ -61,7 +61,11 @@ const GeneratorComponent = () => {
     componentAutoDetect,
     componentMeta,
     componentManualProperties,
+    setComponentManualProperties,
     componentRootIds,
+    setComponentRootIds,
+    activeComponentRootId,
+    setActiveComponentRootId,
   } = useGenerator();
 
   const [activeTagIndex, setActiveTagIndex] = useState(0);
@@ -71,6 +75,7 @@ const GeneratorComponent = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [rightPanelView, setRightPanelView] = useState('layers'); // 'layers' or 'json'
   const [isAIPromptOpen, setIsAIPromptOpen] = useState(false);
+  const [processingWarnings, setProcessingWarnings] = useState([]);
 
   // Custom hooks
   const formatting = useCodeFormatting();
@@ -87,6 +92,18 @@ const GeneratorComponent = () => {
     // Set processed HTML
     setHtml(result.bodyContent);
     
+    // Reset component-related state when HTML changes
+    setComponentRootIds([]);
+    setComponentManualProperties([]);
+    setActiveComponentRootId(null);
+    
+    // Show warnings if any auto-corrections were made
+    if (result.warnings && result.warnings.length > 0) {
+      setProcessingWarnings(result.warnings);
+      // Auto-clear warnings after 5 seconds
+      setTimeout(() => setProcessingWarnings([]), 5000);
+    }
+    
     // Append extracted CSS to existing CSS if any was found
     if (result.extractedCss) {
       setCss(prevCss => {
@@ -102,7 +119,7 @@ const GeneratorComponent = () => {
         return existingJs ? `${existingJs}\n\n// Extracted from <script> tags\n${result.extractedJs}` : result.extractedJs;
       });
     }
-  }, [setHtml, setCss, setJs]);
+  }, [setHtml, setCss, setJs, setComponentRootIds, setComponentManualProperties, setActiveComponentRootId]);
 
   // Generate Bricks structure from current inputs
   const previewHtml = useMemo(() => {
@@ -276,6 +293,29 @@ const GeneratorComponent = () => {
                     </div>
                   </div>
 
+                  {/* Auto-Correction Warnings */}
+                  {processingWarnings.length > 0 && (
+                    <div className="processing-warnings" style={{
+                      padding: '12px 16px',
+                      background: 'rgba(255, 193, 7, 0.1)',
+                      borderLeft: '3px solid #ffc107',
+                      margin: '8px 0',
+                      borderRadius: '4px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                        <FaExclamationTriangle size={16} style={{ color: '#ffc107', marginTop: '2px', flexShrink: 0 }} />
+                        <div style={{ flex: 1 }}>
+                          <strong style={{ color: '#ffc107', display: 'block', marginBottom: '4px' }}>Auto-Corrected Issues:</strong>
+                          <ul style={{ margin: 0, paddingLeft: '20px', color: 'var(--color-text-2)', fontSize: '13px' }}>
+                            {processingWarnings.map((warning, index) => (
+                              <li key={index}>{warning}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Quick Action Tags - Show when code exists */}
                   <QuickActionTags
                     templates={aiTemplates.templates}
@@ -321,89 +361,98 @@ const GeneratorComponent = () => {
 
           <PanelResizeHandle className="resize-handle resize-handle--vertical" />
 
-          {/* Right Panel - Structure/JSON */}
+          {/* Right Panel - Structure/JSON + Component Mode */}
           <Panel defaultSize={20} minSize={15} maxSize={25} className="panel-right">
-            <div className="structure-panel">
-              <div className="structure-panel__header">
-                {/* Toggle between Layers and JSON */}
-                <div className="view-toggle">
-                  <button
-                    className={`view-toggle__btn ${rightPanelView === 'layers' ? 'active' : ''}`}
-                    onClick={() => setRightPanelView('layers')}
-                  >
-                    Layers
-                  </button>
-                  <button
-                    className={`view-toggle__btn ${rightPanelView === 'json' ? 'active' : ''}`}
-                    onClick={() => setRightPanelView('json')}
-                  >
-                    JSON
-                  </button>
+            <PanelGroup direction="vertical">
+              {/* Top: Structure/JSON View */}
+              <Panel defaultSize={70} minSize={30} className="panel-structure">
+                <div className="structure-panel">
+                  <div className="structure-panel__header">
+                    {/* Toggle between Layers and JSON */}
+                    <div className="view-toggle">
+                      <button
+                        className={`view-toggle__btn ${rightPanelView === 'layers' ? 'active' : ''}`}
+                        onClick={() => setRightPanelView('layers')}
+                      >
+                        Layers
+                      </button>
+                      <button
+                        className={`view-toggle__btn ${rightPanelView === 'json' ? 'active' : ''}`}
+                        onClick={() => setRightPanelView('json')}
+                      >
+                        JSON
+                      </button>
+                    </div>
+                  </div>
+                  <div className="structure-panel__content">
+                    {rightPanelView === 'layers' ? (
+                      // Layers View
+                      output ? (() => {
+                        const parsed = JSON.parse(output);
+                        // In component mode, use rawContent to show the original tree for selections
+                        const layerData = componentMode && parsed.rawContent
+                          ? parsed.rawContent
+                          : parsed.content;
+                        const componentProperties = componentMode && parsed.components?.length > 0
+                          ? parsed.components[0].properties
+                          : [];
+                        return (
+                          <StructureView
+                            data={layerData || []}
+                            globalClasses={parsed.globalClasses || []}
+                            activeIndex={activeTagIndex}
+                            showNodeClass={showNodeClass}
+                            componentProperties={componentProperties}
+                          />
+                        );
+                      })() : (
+                        <div className="structure-placeholder">
+                          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9e9e9e" strokeWidth="1.5">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                            <polyline points="10 9 9 9 8 9"></polyline>
+                          </svg>
+                          <p style={{ color: 'var(--color-text-2)', fontSize: 13, marginTop: 12 }}>No structure generated</p>
+                        </div>
+                      )
+                    ) : (
+                      // JSON View
+                      output ? (
+                        <div style={{ height: '100%', overflow: 'hidden' }}>
+                          <CodeEditor
+                            value={isMinified ? output : formatting.formatJson(output)}
+                            onChange={() => { }} // Read-only
+                            language="json"
+                            height="100%"
+                            readOnly={true}
+                            lineNumbers="off"
+                            minimap={false}
+                          />
+                        </div>
+                      ) : (
+                        <div className="structure-placeholder">
+                          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9e9e9e" strokeWidth="1.5">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <circle cx="12" cy="15" r="3"></circle>
+                          </svg>
+                          <p style={{ color: 'var(--color-text-2)', fontSize: 13, marginTop: 12 }}>No JSON output</p>
+                        </div>
+                      )
+                    )}
+                  </div>
                 </div>
-              </div>
-              <div className="structure-panel__content">
-                {rightPanelView === 'layers' ? (
-                  // Layers View
-                  output ? (() => {
-                    const parsed = JSON.parse(output);
-                    // In component mode, use rawContent to show the original tree for selections
-                    const layerData = componentMode && parsed.rawContent
-                      ? parsed.rawContent
-                      : parsed.content;
-                    const componentProperties = componentMode && parsed.components?.length > 0
-                      ? parsed.components[0].properties
-                      : [];
-                    return (
-                      <StructureView
-                        data={layerData || []}
-                        globalClasses={parsed.globalClasses || []}
-                        activeIndex={activeTagIndex}
-                        showNodeClass={showNodeClass}
-                        componentProperties={componentProperties}
-                      />
-                    );
-                  })() : (
-                    <div className="structure-placeholder">
-                      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9e9e9e" strokeWidth="1.5">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2-2V8z"></path>
-                        <polyline points="14 2 14 8 20 8"></polyline>
-                        <line x1="16" y1="13" x2="8" y2="13"></line>
-                        <line x1="16" y1="17" x2="8" y2="17"></line>
-                        <polyline points="10 9 9 9 8 9"></polyline>
-                      </svg>
-                      <p style={{ color: 'var(--color-text-2)', fontSize: 13, marginTop: 12 }}>No structure generated</p>
-                    </div>
-                  )
-                ) : (
-                  // JSON View
-                  output ? (
-                    <div style={{ height: '100%', overflow: 'hidden' }}>
-                      <CodeEditor
-                        value={isMinified ? output : formatting.formatJson(output)}
-                        onChange={() => { }} // Read-only
-                        language="json"
-                        height="100%"
-                        readOnly={true}
-                        lineNumbers="off"
-                        minimap={false}
-                      />
-                    </div>
-                  ) : (
-                    <div className="structure-placeholder">
-                      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9e9e9e" strokeWidth="1.5">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2-2V8z"></path>
-                        <polyline points="14 2 14 8 20 8"></polyline>
-                        <circle cx="12" cy="15" r="3"></circle>
-                      </svg>
-                      <p style={{ color: 'var(--color-text-2)', fontSize: 13, marginTop: 12 }}>No JSON output</p>
-                    </div>
-                  )
-                )}
-              </div>
+              </Panel>
 
-              {/* Component Mode Settings Panel - fixed at bottom of right panel */}
-              <ComponentMode output={output} />
-            </div>
+              <PanelResizeHandle className="resize-handle resize-handle--horizontal" />
+
+              {/* Bottom: Component Mode Settings */}
+              <Panel defaultSize={30} minSize={20} maxSize={60} className="panel-component-mode">
+                <ComponentMode output={output} />
+              </Panel>
+            </PanelGroup>
           </Panel>
 
         </PanelGroup>

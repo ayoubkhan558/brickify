@@ -160,10 +160,26 @@ const StructureView = ({ data, globalClasses, activeIndex, showNodeClass }) => {
       return;
     }
 
-    const rawLabel = (element.label || element.name || '')
+    // Try to get label from element, fallback to parent if empty or generic
+    let rawLabel = (element.label || element.name || '')
       .replace(/__/g, ' ').replace(/--/g, ' ')
       .replace(/[-_]/g, ' ')
       .replace(/\b\w/g, c => c.toUpperCase()).trim();
+
+    // If label is empty or generic, try parent
+    if (!rawLabel || rawLabel === 'Div' || rawLabel === 'Text Basic' || rawLabel === 'Text') {
+      const parentEl = data.find(el => el.id === element.parent);
+      if (parentEl) {
+        const parentLabel = (parentEl.label || parentEl.name || '')
+          .replace(/__/g, ' ').replace(/--/g, ' ')
+          .replace(/[-_]/g, ' ')
+          .replace(/\b\w/g, c => c.toUpperCase()).trim();
+        
+        if (parentLabel && parentLabel !== 'Div' && parentLabel !== 'Text Basic' && parentLabel !== 'Text') {
+          rawLabel = parentLabel;
+        }
+      }
+    }
 
     const typeMap = { image: 'image', link: 'link', icon: 'icon' };
     const type = typeMap[settingKey] || 'text';
@@ -171,14 +187,18 @@ const StructureView = ({ data, globalClasses, activeIndex, showNodeClass }) => {
 
     setComponentManualProperties(prev => [
       ...prev,
-      { label: rawLabel, type, default: defaultValue, elementId: element.id, settingKey },
+      { label: rawLabel || 'Property', type, default: defaultValue, elementId: element.id, settingKey },
     ]);
   };
 
   const handleNodeClick = (nodeId) => {
     // When clicking any element, set the active component root to whichever root owns it
     const owningRoot = elementToRootId.get(nodeId) || null;
-    setActiveComponentRootId(owningRoot);
+    
+    // Always update the active component root when clicking
+    if (owningRoot !== activeComponentRootId) {
+      setActiveComponentRootId(owningRoot);
+    }
   };
 
   const handleToggleComponentRoot = (nodeId) => {

@@ -158,6 +158,23 @@ const domNodeToBricks = (node, cssRulesMap = {}, parentId = '0', globalClasses =
       return null;
     }
 
+    // Skip text nodes if parent is a div that should handle text content directly
+    // (divs with only text/emoji content should not create separate text elements)
+    const parent = node.parentElement;
+    if (parent && parent.tagName && parent.tagName.toLowerCase() === 'div') {
+      // Check if parent div has only text content (no element children)
+      const hasOnlyText = Array.from(parent.childNodes).every(
+        child => child.nodeType === Node.TEXT_NODE || 
+          (child.nodeType === Node.TEXT_NODE && child.textContent.trim() !== '')
+      );
+      
+      // If parent div has classes or only text, let the parent handle it
+      // Don't create separate text element for simple text/emoji inside divs
+      if (hasOnlyText && parent.className && typeof parent.className === 'string' && parent.className.trim()) {
+        return null;
+      }
+    }
+
     if (node.nodeType === Node.TEXT_NODE) {
       const textElement = {
         id: `brx-text-${path}`,
