@@ -1,105 +1,177 @@
- .structure-view {
-   padding: 16px;
-   color: var(--color-text);
-   height: 100%;
-   overflow: auto;
+.structure-view {
+  padding: 12px;
+  color: var(--color-text);
+  height: 100%;
+  overflow: auto;
 
-   ul {
-     list-style-type: none;
-     padding-left: 18px;
-     margin: 0;
-   }
+  ul {
+    list-style-type: none;
+    padding-left: 18px;
+    margin: 0;
+  }
 
-   li {
-     position: relative;
+  li {
+    position: relative;
 
-     .node-content {
-       display: flex;
-       align-items: center;
-       padding: 5px 5px;
-       cursor: pointer;
-       border-radius: 4px;
-       border: 1px solid var(--color-surface-1);
-       background-color: var(--color-surface-2);
-       transition: background-color 0.2s ease;
-       margin-bottom: 5px;
+    /* ── Row ── */
+    .node-content {
+      display: flex;
+      align-items: center;
+      padding: 5px 5px;
+      cursor: pointer;
+      border-radius: 4px;
+      border: 1px solid transparent;
+      background-color: var(--color-surface-2);
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+      margin-bottom: 4px;
+      gap: 4px;
 
-       &:hover {
-         background-color: var(--color-surface-2);
-       }
+      &:hover {
+        background-color: var(--color-surface-1);
+        border-color: var(--color-border);
+      }
 
-       position: relative;
+      /* Active selection in editor */
+      &.active {
+        background-color: var(--color-surface-1);
+        border-color: var(--color-primary);
+      }
 
-       &::before,
-       &::after {
-         content: '';
-         position: absolute;
-         left: -15px;
-       }
+      /* Has an exposed property */
+      &.has-property {
+        border-left: 3px solid #b794f4;
+      }
 
-       &::before {
-         border-top: 1px solid var(--color-border);
-         top: 12px;
-         width: 10px;
-         height: 0;
-       }
+      /* Is a component root */
+      &.is-component-root {
+        border-left: 3px solid var(--color-primary);
+        background: rgba(99, 179, 237, 0.06);
+      }
 
-       &::after {
-         border-left: 1px solid var(--color-border);
-         height: 100%;
-         width: 0px;
-         top: -5px;
-       }
+      /* Tree lines */
+      position: relative;
+      &::before, &::after {
+        content: '';
+        position: absolute;
+        left: -15px;
+      }
+      &::before {
+        border-top: 1px solid var(--color-border);
+        top: 12px;
+        width: 10px;
+        height: 0;
+      }
+      &::after {
+        border-left: 1px solid var(--color-border);
+        height: 100%;
+        width: 0;
+        top: -5px;
+      }
+      &:last-child::after { height: 18px; }
+    }
 
-       &:last-child::after {
-         height: 18px;
-       }
-     }
+    /* ── Toggle chevron ── */
+    .node-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-text-2);
+      flex-shrink: 0;
+      width: 16px;
+    }
 
-     .node-toggle {
-       display: inline-flex;
-       align-items: center;
-       justify-content: center;
-       color: var(--color-text-2);
-       width: 6px;
+    /* ── Element icon ── */
+    .node-icon {
+      padding: 0 !important;
+      border: 0 !important;
+      margin: 0 !important;
+      color: var(--color-secondary);
+      display: inline-flex;
+      align-items: center;
+      flex-shrink: 0;
+    }
 
-       &:not(.no-child) {
-         width: 20px;
-       }
+    /* ── CSS class / tag labels ── */
+    .node-tag,
+    .node-class {
+      font-size: 0.8em;
+      font-weight: 500;
+      padding: 0 6px;
+      color: var(--color-text-2);
+      border-radius: var(--border-radius);
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .node-class { color: var(--color-primary-light); }
 
-       &:not(.no-child) {}
+    /* ── Property badge ── */
+    .node-property-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 1px 5px;
+      background: rgba(183, 148, 244, 0.15);
+      color: #b794f4;
+      border-radius: 3px;
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      flex-shrink: 0;
+    }
 
-       .no-toggle {
-         width: 16px;
-       }
-     }
+    /* ── Action buttons (Expose / Make Component) ── */
+    .expose-property-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 2px 7px;
+      background: rgba(183, 148, 244, 0.07);
+      border: 1px solid rgba(183, 148, 244, 0.25);
+      border-radius: 4px;
+      color: #b794f4;
+      font-size: 10px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+      flex-shrink: 0;
 
-     .node-icon {
-       padding: 0 !important;
-       border: 0 !important;
-       margin: 0 !important;
-       color: var(--color-secondary);
-       display: inline-flex;
-       align-items: center;
-     }
+      /* Hidden by default — shown on row hover or when active */
+      opacity: 0;
+      visibility: hidden;
 
-     .node-tag,
-     .node-class {
-       font-size: 0.8em;
-       line-height: 1;
-       font-weight: 500;
-       padding: 0px 10px;
-       color: var(--color-text-2);
-       border-radius: var(--border-radius);
-     }
+      &:hover {
+        background: rgba(183, 148, 244, 0.2);
+        border-color: #b794f4;
+      }
 
-     .node-tag {
-       // background-color: var(--color-primary-light);
-     }
+      /* Already mapped */
+      &.exposed {
+        opacity: 1 !important;
+        visibility: visible !important;
+        background: rgba(183, 148, 244, 0.2);
+        border-color: #b794f4;
+        color: #d6bcfa;
+      }
 
-     .node-class {
-       color: var(--color-primary-light);
-       background-color: var(--color-surface-2);
-     }
-   }
- }
+      /* Active component root */
+      &.active-root {
+        opacity: 1 !important;
+        visibility: visible !important;
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: #fff;
+      }
+    }
+
+    /* Reveal buttons on row hover */
+    .node-content:hover .expose-property-btn {
+      opacity: 1;
+      visibility: visible;
+    }
+  }
+}

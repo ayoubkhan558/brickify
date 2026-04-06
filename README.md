@@ -140,6 +140,9 @@ e2e/ # End-to-end tests
 ## 📋 Usage
 
 - Paste your HTML into the HTML editor tab
+  - **Auto-strip feature**: HTML structural tags (`<html>`, `<head>`, `<body>`, `<!DOCTYPE>`) are automatically removed
+  - **Auto-extract**: `<style>` tags are automatically moved to the CSS tab
+  - **Auto-extract**: Inline `<script>` tags are automatically moved to the JS tab (external scripts with `src` are ignored)
 - Add CSS (optional) in the CSS tab
 - Add JavaScript (optional) in the JS tab
 - Configure output options as needed
@@ -161,6 +164,7 @@ e2e/ # End-to-end tests
 - Multiple AI provider support
 - Native browser API selector matching (element.matches())
 - **Standalone form input auto-wrapping** – Automatically wraps standalone inputs in form elements
+- **Auto HTML cleanup** – Automatically strips `<html>`, `<head>`, `<body>` tags and extracts `<style>` and `<script>` content
 
 ### Planned
 

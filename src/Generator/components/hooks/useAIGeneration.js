@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { logger } from '@lib/logger';
+import { stripAndExtract } from '../../utils/htmlInputProcessor';
 
 /**
  * Custom hook for AI code generation functionality
@@ -259,14 +260,23 @@ ${css}
 \`\`\``;
                     } else {
                         // Single tab update
-                        userPrompt = `I have the following ${activeTab.toUpperCase()} code that needs to be refactored according to the template guidelines provided in the system prompt. Please update the code while preserving all existing content and structure:\n\n\`\`\`${activeTab}\n${currentCode}\n\`\`\``;
+                        userPrompt = `I have the following ${activeTab.toUpperCase()} code that needs to be refactored according to the template guidelines provided in the system prompt. Please update the code while preserving all existing content and structure:
+
+\`\`\`${activeTab}
+${currentCode}
+\`\`\``;
                     }
                 } else {
                     userPrompt = 'Generate code following the selected template guidelines.';
                 }
             } else if (hasExistingCode) {
                 // User provided prompt - append existing code for context
-                userPrompt += `\n\nCurrent ${activeTab.toUpperCase()} code:\n\`\`\`${activeTab}\n${currentCode}\n\`\`\``;
+                userPrompt += `
+
+Current ${activeTab.toUpperCase()} code:
+\`\`\`${activeTab}
+${currentCode}
+\`\`\``;
             }
 
             // Generate code
@@ -363,7 +373,25 @@ ${css}
             // If we successfully parsed multi-file JSON, apply all files
             if (parsedMultiFile) {
                 if (parsedMultiFile.html) {
-                    setHtml(cleanHTML(parsedMultiFile.html));
+                    // Process HTML to strip structural tags and extract styles/scripts
+                    const processed = stripAndExtract(cleanHTML(parsedMultiFile.html));
+                    setHtml(processed.bodyContent);
+                    
+                    // Append extracted CSS if any
+                    if (processed.extractedCss) {
+                        setCss(prevCss => {
+                            const existingCss = prevCss.trim();
+                            return existingCss ? `${existingCss}\n\n/* Extracted from AI-generated <style> tags */\n${processed.extractedCss}` : processed.extractedCss;
+                        });
+                    }
+                    
+                    // Append extracted JS if any
+                    if (processed.extractedJs) {
+                        setJs(prevJs => {
+                            const existingJs = prevJs.trim();
+                            return existingJs ? `${existingJs}\n\n// Extracted from AI-generated <script> tags\n${processed.extractedJs}` : processed.extractedJs;
+                        });
+                    }
                 }
                 if (parsedMultiFile.css) {
                     setCss(cleanCSS(parsedMultiFile.css));
@@ -374,7 +402,25 @@ ${css}
             } else {
                 // Single file response - apply to active tab
                 if (activeTab === 'html') {
-                    setHtml(cleanHTML(cleanedCode));
+                    // Process HTML to strip structural tags and extract styles/scripts
+                    const processed = stripAndExtract(cleanHTML(cleanedCode));
+                    setHtml(processed.bodyContent);
+                    
+                    // Append extracted CSS if any
+                    if (processed.extractedCss) {
+                        setCss(prevCss => {
+                            const existingCss = prevCss.trim();
+                            return existingCss ? `${existingCss}\n\n/* Extracted from AI-generated <style> tags */\n${processed.extractedCss}` : processed.extractedCss;
+                        });
+                    }
+                    
+                    // Append extracted JS if any
+                    if (processed.extractedJs) {
+                        setJs(prevJs => {
+                            const existingJs = prevJs.trim();
+                            return existingJs ? `${existingJs}\n\n// Extracted from AI-generated <script> tags\n${processed.extractedJs}` : processed.extractedJs;
+                        });
+                    }
                 } else if (activeTab === 'css') {
                     setCss(cleanCSS(cleanedCode));
                 } else if (activeTab === 'js') {

@@ -17,7 +17,7 @@ const Header = ({
     clipboard
 }) => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-    const { componentMode, toggleComponentMode } = useGenerator();
+    const { componentMode } = useGenerator();
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -94,25 +94,7 @@ const Header = ({
                         </label>
                     </div>
 
-                    {/* Component Mode Toggle */}
-                    <div className="form-control__option">
-                        <label className="form-control__label">
-                            Component Mode
-                        </label>
-                        <label className="form-control__switch" style={{ marginRight: 8 }}>
-                            <input
-                                type="checkbox"
-                                checked={componentMode}
-                                onChange={toggleComponentMode}
-                            />
-                            <span className="form-control__slider"></span>
-                        </label>
-                        {componentMode && (
-                            <span className="component-toggle__badge">
-                                <FaPlug size={8} /> Component
-                            </span>
-                        )}
-                    </div>
+                    {/* Removed Component Mode Toggle */}
                 </div>
 
                 <div className="app-header__actions">

@@ -18,6 +18,7 @@ import logger from '@lib/logger';
 
 import { useGenerator } from '@contexts/GeneratorContext';
 import { createBricksStructure } from '../utils/bricksGenerator';
+import { stripAndExtract } from '../utils/htmlInputProcessor';
 import Preview from './Preview';
 import CodeEditor from '@generator/CodeEditor';
 import StructureView from './StructureView';
@@ -60,6 +61,7 @@ const GeneratorComponent = () => {
     componentAutoDetect,
     componentMeta,
     componentManualProperties,
+    componentRootIds,
   } = useGenerator();
 
   const [activeTagIndex, setActiveTagIndex] = useState(0);
@@ -77,6 +79,30 @@ const GeneratorComponent = () => {
   const aiGeneration = useAIGeneration(activeTab, html, css, js, setHtml, setCss, setJs, aiTemplates);
 
 
+
+  // Handle HTML input changes with automatic stripping and extraction
+  const handleHtmlChange = useCallback((newHtml) => {
+    const result = stripAndExtract(newHtml);
+    
+    // Set processed HTML
+    setHtml(result.bodyContent);
+    
+    // Append extracted CSS to existing CSS if any was found
+    if (result.extractedCss) {
+      setCss(prevCss => {
+        const existingCss = prevCss.trim();
+        return existingCss ? `${existingCss}\n\n/* Extracted from <style> tags */\n${result.extractedCss}` : result.extractedCss;
+      });
+    }
+    
+    // Append extracted JS to existing JS if any was found
+    if (result.extractedJs) {
+      setJs(prevJs => {
+        const existingJs = prevJs.trim();
+        return existingJs ? `${existingJs}\n\n// Extracted from <script> tags\n${result.extractedJs}` : result.extractedJs;
+      });
+    }
+  }, [setHtml, setCss, setJs]);
 
   // Generate Bricks structure from current inputs
   const previewHtml = useMemo(() => {
@@ -139,6 +165,7 @@ const GeneratorComponent = () => {
             componentCategory: componentMeta.category,
             componentDescription: componentMeta.description,
             componentManualProperties: !componentAutoDetect ? componentManualProperties : [],
+            componentRootIds,
           }
         });
         const json = isMinified
@@ -157,7 +184,7 @@ const GeneratorComponent = () => {
       // Optionally, you can set an error state here to show in the UI
     }
   }, [html, css, js, includeJs, inlineStyleHandling, isMinified, showNodeClass, mergeNonClassSelectors,
-      componentMode, componentAutoDetect, componentMeta, componentManualProperties]);
+      componentMode, componentAutoDetect, componentMeta, componentManualProperties, componentRootIds]);
 
   return (
     <div className="generator">
@@ -226,7 +253,7 @@ const GeneratorComponent = () => {
                     <div className="code-editor__pane active">
                       <CodeEditor
                         value={activeTab === 'html' ? html : activeTab === 'css' ? css : js}
-                        onChange={activeTab === 'html' ? setHtml : activeTab === 'css' ? setCss : setJs}
+                        onChange={activeTab === 'html' ? handleHtmlChange : activeTab === 'css' ? setCss : setJs}
                         language={activeTab}
                         placeholder={
                           activeTab === 'html'
@@ -319,9 +346,9 @@ const GeneratorComponent = () => {
                   // Layers View
                   output ? (() => {
                     const parsed = JSON.parse(output);
-                    // In component mode, the full element tree is inside components[0].elements
-                    const layerData = componentMode && parsed.components?.length > 0
-                      ? parsed.components[0].elements
+                    // In component mode, use rawContent to show the original tree for selections
+                    const layerData = componentMode && parsed.rawContent
+                      ? parsed.rawContent
                       : parsed.content;
                     const componentProperties = componentMode && parsed.components?.length > 0
                       ? parsed.components[0].properties
@@ -424,4 +451,4 @@ const GeneratorComponent = () => {
   );
 };
 
-export default GeneratorComponent;
+export default GeneratorComponent;

@@ -61,7 +61,7 @@ export class ConverterService {
 
             // Step 6: If component mode, transform into component structure
             if (conversionOptions.componentMode) {
-                return this.componentBuilder.buildComponent(
+                const componentResult = this.componentBuilder.buildComponent(
                     standardResult,
                     {
                         category: conversionOptions.componentCategory || '',
@@ -71,8 +71,11 @@ export class ConverterService {
                     {
                         autoDetect: conversionOptions.componentAutoDetect !== false,
                         manualProperties: conversionOptions.componentManualProperties || [],
+                        componentRootIds: conversionOptions.componentRootIds || (conversionOptions.componentRootId ? [conversionOptions.componentRootId] : []),
                     }
                 );
+                componentResult.rawContent = standardResult.content;
+                return componentResult;
             }
 
             return standardResult;
@@ -94,7 +97,7 @@ export class ConverterService {
         const globalClasses = [];
         const allElements = [];
 
-        Array.from(nodeList).forEach(node => {
+        Array.from(nodeList).forEach((node, index) => {
             const element = domNodeToBricks(
                 node,
                 cssContext.cssMap,
@@ -109,7 +112,8 @@ export class ConverterService {
                         inlineStyleHandling: options.inlineStyleHandling || 'class',
                         mergeNonClassSelectors: options.mergeNonClassSelectors || false
                     }
-                }
+                },
+                `root-${index}`
             );
 
             if (element) {

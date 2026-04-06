@@ -139,7 +139,7 @@ const handleInlineStyles = (node, element, globalClasses, variables = {}, option
 /**
  * Processes a DOM node and converts it to a Bricks element
  */
-const domNodeToBricks = (node, cssRulesMap = {}, parentId = '0', globalClasses = [], allElements = [], variables = {}, options = {}) => {
+const domNodeToBricks = (node, cssRulesMap = {}, parentId = '0', globalClasses = [], allElements = [], variables = {}, options = {}, path = '0') => {
   // Get context values from options with defaults
   const {
     inlineStyleHandling = 'inline',
@@ -160,7 +160,7 @@ const domNodeToBricks = (node, cssRulesMap = {}, parentId = '0', globalClasses =
 
     if (node.nodeType === Node.TEXT_NODE) {
       const textElement = {
-        id: generateId(),
+        id: `brx-text-${path}`,
         name: 'text-basic',
         parent: parentId,
         children: [],
@@ -194,7 +194,13 @@ const domNodeToBricks = (node, cssRulesMap = {}, parentId = '0', globalClasses =
   // We'll handle empty divs by setting appropriate defaults
 
   let name = 'div';
-  const elementId = generateId();
+  
+  // Create a more specific stable ID: tag + first-class + path
+  const firstClass = node.className && typeof node.className === 'string' 
+    ? `-${node.className.split(/\s+/)[0].replace(/[^a-zA-Z0-9]/g, '')}` 
+    : '';
+  const elementId = `brx-${tag}${firstClass}-${path}`;
+  
   const element = {
     id: elementId,
     name,
@@ -286,8 +292,8 @@ const domNodeToBricks = (node, cssRulesMap = {}, parentId = '0', globalClasses =
       // Always treat href as a custom URL (including hash anchors)
       element.settings.link = getLinkSettings(node);
       // Process and nest children
-      Array.from(node.childNodes).forEach(childNode => {
-        const childElement = domNodeToBricks(childNode, cssRulesMap, elementId, globalClasses, allElements, variables, options);
+      Array.from(node.childNodes).forEach((childNode, index) => {
+        const childElement = domNodeToBricks(childNode, cssRulesMap, elementId, globalClasses, allElements, variables, options, `${path}-${index}`);
         if (childElement) {
           if (Array.isArray(childElement)) {
             childElement.forEach(c => {
@@ -404,7 +410,7 @@ const domNodeToBricks = (node, cssRulesMap = {}, parentId = '0', globalClasses =
   // Process children (only skip td/th to avoid duplication, allow other table elements to process children)
   // Skip traversing children for table cells, forms, and elements that handle their own text content
   if (!['td', 'th', 'form'].includes(tag) && !element._skipTextNodes && !element._skipChildren) {
-    Array.from(node.childNodes).forEach(childNode => {
+    Array.from(node.childNodes).forEach((childNode, index) => {
       // Skip empty text nodes and text nodes when the parent handles its own text content
       if (childNode.nodeType === Node.TEXT_NODE && (!childNode.textContent.trim() || element._skipTextNodes)) {
         return;
@@ -413,7 +419,7 @@ const domNodeToBricks = (node, cssRulesMap = {}, parentId = '0', globalClasses =
       if (element._skipTextNodes && childNode.nodeType === Node.TEXT_NODE) {
         return;
       }
-      const childElement = domNodeToBricks(childNode, cssRulesMap, elementId, globalClasses, allElements, variables, options);
+      const childElement = domNodeToBricks(childNode, cssRulesMap, elementId, globalClasses, allElements, variables, options, `${path}-${index}`);
       if (childElement) {
         if (Array.isArray(childElement)) {
           childElement.forEach(c => element.children.push(c.id));

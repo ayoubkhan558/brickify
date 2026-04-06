@@ -2,10 +2,15 @@ import React, { useState } from 'react';
 
 const PROPERTY_TYPES = [
   { value: 'text', label: 'Text' },
+  { value: 'rich-text', label: 'Rich Text' },
+  { value: 'icon', label: 'Icon' },
   { value: 'image', label: 'Image' },
+  { value: 'image-gallery', label: 'Image gallery' },
   { value: 'link', label: 'Link' },
   { value: 'select', label: 'Select' },
   { value: 'toggle', label: 'Toggle' },
+  { value: 'query-loop', label: 'Query loop' },
+  { value: 'global-classes', label: 'Global classes' },
 ];
 
 const PropertyConfigurator = ({ onAdd, onCancel, elementId = '', settingKey = '' }) => {

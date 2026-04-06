@@ -9,27 +9,15 @@ import { generateComponentId } from '@lib/bricks';
 import { BRICKS_VERSION, BRICKS_SOURCE, BRICKS_SOURCE_URL } from '@config/constants';
 
 /**
- * Property type detection rules: maps Bricks element names + setting keys
- * to component property types.
- */
-const PROPERTY_TYPE_MAP = {
-    text: 'text',
-    image: 'image',
-    link: 'link',
-    src: 'image',
-    url: 'link',
-    href: 'link',
-};
-
-/**
  * Elements whose text/content settings should be auto-detected as exposable properties.
  */
 const AUTO_DETECT_ELEMENTS = {
-    heading: ['text'],
-    'text-basic': ['text'],
+    heading:     ['text'],
+    'text-basic':['text'],
     'text-link': ['text', 'link'],
-    image: ['image'],
-    button: ['text', 'link'],
+    image:       ['image'],
+    button:      ['text', 'link'],
+    icon:        ['icon'],
 };
 
 export class ComponentBuilder {
@@ -37,387 +25,316 @@ export class ComponentBuilder {
         this.reset();
     }
 
-    /**
-     * Resets the builder state for a fresh conversion.
-     */
     reset() {
-        this.componentId = '';
-        this.contentElement = null;
-        this.componentDef = null;
-        this.idMapping = new Map();        // old element id -> new component id
-        this.properties = [];
+        this.componentId   = '';
+        this.idMapping     = new Map();   // originalId -> new 6-char Bricks id
+        this.properties    = [];
         this.propertyGroups = [];
-        this.manualProperties = [];        // manually mapped property overrides
+        this.manualProperties = [];
     }
 
     /**
-     * Main entry point: converts a standard Bricks structure into a component structure.
+     * Main entry point.
      *
-     * @param {Object}  standardResult  - The standard { content, globalClasses, ... } output
-     * @param {Object}  meta            - Component metadata: { category, description, version }
-     * @param {Object}  options         - { autoDetect: boolean, manualProperties: [] }
-     * @returns {Object} Bricks component JSON
+     * @param {Object} standardResult   - { content, globalClasses, ... } from converter
+     * @param {Object} meta             - { category, description }
+     * @param {Object} options          - { autoDetect, manualProperties, componentRootIds }
      */
     buildComponent(standardResult, meta = {}, options = {}) {
-        this.reset();
-
         const { content = [], globalClasses = [], globalElements = [] } = standardResult;
-        if (!content.length) return standardResult;   // nothing to componentize
+        if (!content.length) return standardResult;
 
-        const autoDetect = options.autoDetect !== false;
-        this.manualProperties = options.manualProperties || [];
+        const autoDetect         = options.autoDetect !== false;
+        const allManualProps     = options.manualProperties || [];
+        const componentRootIds   = options.componentRootIds || [];
 
-        // 1. Generate the component ID (cid)
-        this.componentId = generateComponentId();
+        // If no roots selected just return standard output
+        if (componentRootIds.length === 0) return standardResult;
 
-        // 2. Re-map all element IDs to Bricks-native 6-char IDs
-        this.idMapping = this.buildIdMapping(content);
+        // --- Build a fast lookup map for the full element tree ---
+        const elementMap = new Map(content.map(el => [el.id, el]));
 
-        // 3. Build internal elements array (with remapped IDs)
-        const internalElements = this.buildInternalElements(content);
+        // --- Helper: depth of an element ---
+        const getDepth = (id) => {
+            let d = 0;
+            let cur = elementMap.get(id);
+            while (cur && cur.parent && cur.parent !== '0' && cur.parent !== 0) {
+                d++;
+                cur = elementMap.get(cur.parent);
+            }
+            return d;
+        };
 
-        // 4. Build properties (auto-detect + manual overrides)
-        if (autoDetect) {
-            this.autoDetectProperties(internalElements);
-        }
-        this.applyManualProperties();
+        // --- Helper: full subtree (array) rooted at parentId ---
+        const getSubtree = (parentId, source) => {
+            const children = source.filter(el => el.parent === parentId);
+            let tree = [...children];
+            children.forEach(c => { tree = tree.concat(getSubtree(c.id, source)); });
+            return tree;
+        };
 
-        // 5. Build property groups (group related properties, e.g. button text + link)
-        this.buildPropertyGroups();
+        // Process deepest roots first to handle nesting correctly
+        const sortedRoots = [...componentRootIds]
+            .filter(id => elementMap.has(id))
+            .sort((a, b) => getDepth(b) - getDepth(a));
 
-        // 6. Build the outer content element (the component instance)
-        const outerElement = this.buildOuterContentElement(content);
+        let currentContent   = [...content];
+        const allComponentDefs = [];
 
-        // 7. Assemble the component definition
-        const componentDef = this.buildComponentDefinition(internalElements, meta);
+        sortedRoots.forEach(rootId => {
+            this.reset();
 
-        // 8. Return full structure
+            // Find root in current (possibly already partially-componentised) content
+            const rootElement = currentContent.find(el => el.id === rootId);
+            if (!rootElement) return;
+
+            // Collect this component's elements
+            const subtree          = getSubtree(rootElement.id, currentContent);
+            const componentElements = [rootElement, ...subtree];
+            const componentIds     = new Set(componentElements.map(el => el.id));
+
+            // Scope manual props to this component
+            this.manualProperties = allManualProps.filter(mp => componentIds.has(mp.elementId));
+
+            // 1. New Bricks component id
+            this.componentId = generateComponentId();
+
+            // 2. ID re-mapping: old id -> new 6-char id
+            this.idMapping = this.buildIdMapping(componentElements, rootElement.id);
+
+            // 3. Build internal element list with remapped IDs
+            const internalElements = this.buildInternalElements(componentElements, rootElement.id);
+
+            // 4. Properties
+            if (autoDetect) {
+                this.autoDetectProperties(internalElements);
+            }
+            // Manual props always applied on top (override / extend auto)
+            this.applyManualProperties();
+            this.buildPropertyGroups();
+
+            // 5. Component definition object
+            const componentDef = this.buildComponentDefinition(internalElements, meta);
+            allComponentDefs.push(componentDef);
+
+            // 6. Replace the subtree in currentContent with a lightweight instance element
+            const instanceId = generateComponentId();
+            const instanceElement = {
+                id:       instanceId,
+                name:     rootElement.name,
+                parent:   rootElement.parent,
+                children: [],
+                settings: {},
+                label:    rootElement.label || this.formatLabel(rootElement.name),
+                cid:      this.componentId,
+            };
+
+            currentContent = currentContent.filter(el => !componentIds.has(el.id));
+            currentContent.push(instanceElement);
+
+            // Fix parent's children array to point at instance
+            const parentEl = currentContent.find(el => el.id === rootElement.parent);
+            if (parentEl && Array.isArray(parentEl.children)) {
+                parentEl.children = parentEl.children.map(
+                    cid => (cid === rootId ? instanceId : cid)
+                );
+            }
+        });
+
         return {
-            content: [outerElement],
-            source: BRICKS_SOURCE,
-            sourceUrl: BRICKS_SOURCE_URL,
-            version: BRICKS_VERSION,
-            components: [componentDef],
+            content:       currentContent,
+            source:        BRICKS_SOURCE,
+            sourceUrl:     BRICKS_SOURCE_URL,
+            version:       BRICKS_VERSION,
+            components:    allComponentDefs,
             globalClasses: globalClasses || [],
             globalElements: globalElements || [],
         };
     }
 
-    // ─── Internal Methods ───────────────────────────────────────────────
+    // ─── Internal Methods ────────────────────────────────────────────────
 
-    /**
-     * Creates a mapping from original element IDs to new 6-char component IDs.
-     * The root element gets the component ID itself.
-     */
-    buildIdMapping(content) {
-        const mapping = new Map();
-
-        // Find the root element(s) - those whose parent is '0' or 0
-        const roots = content.filter(el => el.parent === '0' || el.parent === 0);
-
-        // The first root element maps to the component ID
-        if (roots.length > 0) {
-            mapping.set(roots[0].id, this.componentId);
-        }
-
-        // All other elements get their own 6-char IDs
-        content.forEach(el => {
-            if (!mapping.has(el.id)) {
-                mapping.set(el.id, generateComponentId());
-            }
+    buildIdMapping(elements, rootId) {
+        const map = new Map();
+        // Root element gets the component's own cid
+        map.set(rootId, this.componentId);
+        elements.forEach(el => {
+            if (!map.has(el.id)) map.set(el.id, generateComponentId());
         });
-
-        return mapping;
+        return map;
     }
 
-    /**
-     * Builds the internal elements array with remapped IDs and parents.
-     */
-    buildInternalElements(content) {
-        return content.map(el => {
-            const newId = this.idMapping.get(el.id);
-            const newParent = el.parent === '0' || el.parent === 0
+    buildInternalElements(elements, rootId) {
+        return elements.map(el => {
+            const newId     = this.idMapping.get(el.id);
+            const newParent = el.id === rootId
                 ? 0
-                : this.idMapping.get(el.parent) || el.parent;
+                : (this.idMapping.get(el.parent) ?? el.parent);
 
-            const newChildren = (el.children || []).map(childId =>
-                this.idMapping.get(childId) || childId
+            const newChildren = (el.children || []).map(
+                cid => this.idMapping.get(cid) ?? cid
             );
 
-            // Clone settings - keep all settings as defaults within the component definition
-            const settings = { ...el.settings };
-
-            // For text-link elements, clean the link URL from content settings
-            // (the URL becomes a property override, not a baked-in default)
-
             const result = {
-                id: newId,
-                name: el.name,
-                parent: newParent,
+                id:       newId,
+                name:     el.name,
+                parent:   newParent,
                 children: newChildren,
-                settings,
-                label: this.formatLabel(el.label || el.name),
+                settings: { ...el.settings },
+                label:    el.label || this.formatLabel(el.name),
             };
 
-            // Preserve _skipTextNodes flag
-            if (el._skipTextNodes) {
-                result._skipTextNodes = el._skipTextNodes;
-            }
+            if (el.cid)            result.cid            = el.cid;
+            if (el._skipTextNodes) result._skipTextNodes  = el._skipTextNodes;
 
             return result;
         });
     }
 
-    /**
-     * Auto-detects exposable properties by scanning internal elements.
-     */
     autoDetectProperties(internalElements) {
         internalElements.forEach(el => {
-            const detectableKeys = AUTO_DETECT_ELEMENTS[el.name];
-            if (!detectableKeys) return;
+            const keys = AUTO_DETECT_ELEMENTS[el.name];
+            if (!keys) return;
 
-            detectableKeys.forEach(settingKey => {
-                const settingValue = el.settings[settingKey];
-                if (settingValue === undefined || settingValue === null) return;
+            keys.forEach(settingKey => {
+                const value = el.settings[settingKey];
+                if (value === undefined || value === null) return;
 
-                // Skip if already manually mapped
-                if (this.manualProperties.some(mp =>
-                    mp.elementId === el.id && mp.settingKey === settingKey
-                )) return;
+                // Skip if a manual mapping already covers this element+key
+                const alreadyMapped = this.manualProperties.some(
+                    mp => this.idMapping.get(mp.elementId) === el.id && mp.settingKey === settingKey
+                );
+                if (alreadyMapped) return;
 
-                const propertyType = this.resolvePropertyType(settingKey, el.name);
-                const label = this.generatePropertyLabel(el, settingKey);
-                const defaultValue = this.resolveDefaultValue(settingKey, settingValue);
-
-                const property = {
-                    label,
-                    type: propertyType,
-                    default: defaultValue,
-                    id: generateComponentId(),
-                    connections: {
-                        [el.id]: [settingKey],
-                    },
-                };
-
-                this.properties.push(property);
+                this.properties.push({
+                    id:      generateComponentId(),
+                    label:   this.generatePropertyLabel(el, settingKey),
+                    type:    this.resolvePropertyType(settingKey, el.name),
+                    default: this.resolveDefaultValue(settingKey, value),
+                    connections: { [el.id]: [settingKey] },
+                });
             });
         });
     }
 
-    /**
-     * Applies manually configured property mappings.
-     */
     applyManualProperties() {
         this.manualProperties.forEach(mp => {
-            // Check if auto-detect already created this property
-            const existing = this.properties.find(p =>
-                p.connections && p.connections[mp.elementId]?.includes(mp.settingKey)
+            // The element ID stored in mp.elementId is the ORIGINAL id.
+            // We must remap it to the new internal id.
+            const newElId = this.idMapping.get(mp.elementId) || mp.elementId;
+
+            // Check if auto-detect already covered this slot
+            const existing = this.properties.find(
+                p => p.connections && p.connections[newElId]?.includes(mp.settingKey)
             );
 
             if (existing) {
-                // Update the existing auto-detected property with manual overrides
                 if (mp.label) existing.label = mp.label;
-                if (mp.type) existing.type = mp.type;
+                if (mp.type)  existing.type  = mp.type;
                 if (mp.default !== undefined) existing.default = mp.default;
                 return;
             }
 
-            // Create a new property
-            const elementId = mp.elementId;
-            const property = {
-                label: mp.label || `Property ${this.properties.length + 1}`,
-                type: mp.type || 'text',
+            this.properties.push({
+                id:      generateComponentId(),
+                label:   mp.label || `Property ${this.properties.length + 1}`,
+                type:    mp.type  || 'text',
                 default: mp.default ?? '',
-                id: generateComponentId(),
-                connections: {
-                    [elementId]: [mp.settingKey],
-                },
-            };
-
-            if (mp.group) {
-                property.group = mp.group;
-            }
-
-            this.properties.push(property);
+                connections: { [newElId]: [mp.settingKey] },
+                ...(mp.group ? { group: mp.group } : {}),
+            });
         });
     }
 
-    /**
-     * Groups related properties (e.g., button text + button link).
-     * Looks for elements that have multiple connected properties.
-     */
     buildPropertyGroups() {
-        // Group properties that share a link + text on the same element
-        const elementPropertyMap = new Map();
-
+        const byElement = new Map();
         this.properties.forEach(prop => {
             if (!prop.connections) return;
             Object.keys(prop.connections).forEach(elId => {
-                if (!elementPropertyMap.has(elId)) {
-                    elementPropertyMap.set(elId, []);
-                }
-                elementPropertyMap.get(elId).push(prop);
+                if (!byElement.has(elId)) byElement.set(elId, []);
+                byElement.get(elId).push(prop);
             });
         });
 
-        elementPropertyMap.forEach((props, elId) => {
-            if (props.length >= 2) {
-                // Check if one is text and one is link
-                const hasText = props.some(p => p.type === 'text');
-                const hasLink = props.some(p => p.type === 'link');
+        byElement.forEach(props => {
+            if (props.length < 2) return;
+            const hasText = props.some(p => p.type === 'text');
+            const hasLink = props.some(p => p.type === 'link');
+            if (!hasText || !hasLink) return;
 
-                if (hasText && hasLink) {
-                    const groupId = generateComponentId();
-                    const groupLabel = props[0].label.replace(/\s+(Text|Link)$/i, '') || `Group`;
-
-                    props.forEach(p => {
-                        p.group = groupId;
-                    });
-
-                    this.propertyGroups.push({
-                        id: groupId,
-                        name: groupLabel,
-                    });
-                }
-            }
+            const groupId    = generateComponentId();
+            const groupLabel = props[0].label.replace(/\s+(Text|Link)$/i, '') || 'Group';
+            props.forEach(p => { p.group = groupId; });
+            this.propertyGroups.push({ id: groupId, name: groupLabel });
         });
     }
 
-    /**
-     * Builds the outer content element (the component instance that references the definition via cid).
-     */
-    buildOuterContentElement(content) {
-        // Find root element
-        const root = content.find(el => el.parent === '0' || el.parent === 0);
-        if (!root) {
-            throw new Error('No root element found in content');
-        }
-
-        return {
-            id: generateComponentId(),
-            name: root.name,
-            parent: 0,
-            children: [],
-            settings: {},
-            label: this.formatLabel(root.label || root.name),
-            cid: this.componentId,
-        };
-    }
-
-    /**
-     * Builds the full component definition object.
-     */
     buildComponentDefinition(internalElements, meta = {}) {
         const def = {
-            id: this.componentId,
-            category: meta.category || '',
-            desc: meta.description || '',
-            elements: internalElements,
+            id:         this.componentId,
+            category:   meta.category    || '',
+            desc:       meta.description || '',
+            elements:   internalElements,
             properties: this.properties,
-            _created: Math.floor(Date.now() / 1000),
-            _user_id: 1,
-            _version: BRICKS_VERSION,
+            _created:   Math.floor(Date.now() / 1000),
+            _user_id:   1,
+            _version:   BRICKS_VERSION,
         };
-
-        if (this.propertyGroups.length > 0) {
-            def.propertyGroups = this.propertyGroups;
-        }
-
+        if (this.propertyGroups.length > 0) def.propertyGroups = this.propertyGroups;
         return def;
     }
 
-    // ─── Utility Methods ────────────────────────────────────────────────
+    // ─── Utility helpers ─────────────────────────────────────────────────
 
-    /**
-     * Resolves the property type from a setting key and element name.
-     */
     resolvePropertyType(settingKey, elementName) {
+        if (settingKey === 'icon')  return 'icon';
         if (settingKey === 'image') return 'image';
-        if (settingKey === 'link') return 'link';
+        if (settingKey === 'link')  return 'link';
+        if (settingKey === 'text')  return 'text';
         if (settingKey === 'src' && elementName === 'image') return 'image';
-        return PROPERTY_TYPE_MAP[settingKey] || 'text';
+        return 'text';
     }
 
-    /**
-     * Resolves the default value for a property.
-     * For images, wraps in Bricks image object format.
-     * For links, wraps in Bricks link object format.
-     */
-    resolveDefaultValue(settingKey, settingValue) {
+    resolveDefaultValue(settingKey, value) {
         if (settingKey === 'image') {
-            // Already in Bricks image format { url, external, filename }
-            if (typeof settingValue === 'object' && settingValue.url) {
-                return settingValue;
-            }
-            // Plain URL string
-            return {
-                url: String(settingValue),
-                external: true,
-                filename: this.extractFilename(String(settingValue)),
-            };
+            if (typeof value === 'object' && value.url) return value;
+            return { url: String(value), external: true, filename: this.extractFilename(String(value)) };
         }
-
         if (settingKey === 'link') {
-            if (typeof settingValue === 'object') {
-                return {
-                    type: settingValue.type || 'external',
-                    url: settingValue.url || '#',
-                };
-            }
-            return { type: 'external', url: String(settingValue) };
+            if (typeof value === 'object') return { type: value.type || 'external', url: value.url || '#' };
+            return { type: 'external', url: String(value) };
         }
-
-        return settingValue;
+        if (settingKey === 'icon') {
+            if (typeof value === 'object') return value;
+            return { library: 'themify', icon: String(value) };
+        }
+        return value;
     }
 
-    /**
-     * Generates a human-readable property label from an element.
-     * Uses BEM class name or element name + setting key.
-     */
     generatePropertyLabel(element, settingKey) {
-        const label = element.label || element.name;
-
-        // Convert BEM class names to readable labels
-        // e.g. "card__title" -> "Card Title"
-        // e.g. "hero__heading2" -> "Hero Heading2"
-        const readable = label
-            .replace(/^\./, '')              // remove leading dot
-            .replace(/__/g, ' ')             // BEM element separator
-            .replace(/--/g, ' ')             // BEM modifier separator
-            .replace(/[-_]/g, ' ')           // dashes/underscores to spaces
-            .replace(/\b\w/g, c => c.toUpperCase())  // capitalize words
+        const raw = (element.label || element.name || '')
+            .replace(/^\./,  '')
+            .replace(/__/g,  ' ')
+            .replace(/--/g,  ' ')
+            .replace(/[-_]/g,' ')
+            .replace(/\b\w/g, c => c.toUpperCase())
             .trim();
-
-        // For link properties, append the type to distinguish from text
-        if (settingKey === 'link') {
-            return `${readable} Link`;
-        }
-
-        return readable || `Property`;
+        if (settingKey === 'link') return `${raw} Link`;
+        return raw || 'Property';
     }
 
-    /**
-     * Formats a label to be Title Case.
-     */
     formatLabel(label) {
         if (!label) return '';
         return label
-            .replace(/__/g, ' ')
-            .replace(/--/g, ' ')
-            .replace(/[-_]/g, ' ')
+            .replace(/__/g,  ' ')
+            .replace(/--/g,  ' ')
+            .replace(/[-_]/g,' ')
             .replace(/\b\w/g, c => c.toUpperCase())
             .trim();
     }
 
-    /**
-     * Extracts filename from a URL.
-     */
     extractFilename(url) {
-        try {
-            const pathname = new URL(url).pathname;
-            return pathname.split('/').pop() || url;
-        } catch {
-            return url;
-        }
+        try { return new URL(url).pathname.split('/').pop() || url; }
+        catch { return url; }
     }
 }

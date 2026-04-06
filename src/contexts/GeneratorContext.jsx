@@ -27,6 +27,9 @@ export function GeneratorProvider({ children }) {
     description: '',
   });
   const [componentManualProperties, setComponentManualProperties] = useState([]);
+  const [componentRootIds, setComponentRootIds] = useState([]);
+  const [activeComponentRootId, setActiveComponentRootId] = useState(null); // which root is "focused"
+  const [layerElements, setLayerElements] = useState([]);  // raw flat element array (pre-conversion)
 
   // Dark-mode handling (matches Zustand logic)
   const prefersDark = () => {
@@ -76,6 +79,9 @@ export function GeneratorProvider({ children }) {
     componentAutoDetect, setComponentAutoDetect,
     componentMeta, setComponentMeta,
     componentManualProperties, setComponentManualProperties,
+    componentRootIds, setComponentRootIds,
+    activeComponentRootId, setActiveComponentRootId,
+    layerElements, setLayerElements,
   };
 
   return <GeneratorContext.Provider value={value}>{children}</GeneratorContext.Provider>;
