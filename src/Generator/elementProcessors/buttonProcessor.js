@@ -9,6 +9,26 @@ import { getElementLabel } from '@lib/bricks';
  * @returns {Object} The processed element
  */
 export const processButtonElement = (node, element, tag = 'button', context = {}) => {
+  const textContent = node.textContent.trim();
+  const hasSvg = node.querySelector('svg') !== null;
+
+  // Icon-only buttons (SVG with no visible text): render as a raw HTML code element
+  // so the SVG renders correctly in Bricks. A Bricks 'button' element's text field
+  // can't embed SVG markup, so we fall back to a code block for these.
+  if (hasSvg && !textContent) {
+    element.name = 'code';
+    element.label = getElementLabel(node, 'Icon Button', context);
+    element.settings = {
+      code: node.outerHTML,
+      executeCode: true, // PHP engine echoes raw HTML literals — renders correctly in page
+      signature: crypto.randomUUID().replace(/-/g, '').substring(0, 32),
+      user_id: 1,
+      time: Math.floor(Date.now() / 1000)
+    };
+    element._skipChildren = true;
+    return element;
+  }
+
   element.name = 'button';
   element.label = getElementLabel(node, 'Button', context);
 
@@ -17,7 +37,9 @@ export const processButtonElement = (node, element, tag = 'button', context = {}
     style: "primary",
     tag: "button",
     size: "md",
-    text: node.textContent.trim() || 'Button'
+    // For buttons with SVG + text, use innerHTML to keep the icon alongside the label.
+    // For text-only buttons, use textContent (clean string Bricks renders natively).
+    text: hasSvg ? node.innerHTML : (textContent || 'Button')
   };
 
   // Handle button attributes 

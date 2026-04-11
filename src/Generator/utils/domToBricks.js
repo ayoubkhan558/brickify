@@ -195,16 +195,40 @@ const domNodeToBricks = (node, cssRulesMap = {}, parentId = '0', globalClasses =
   const tag = node.tagName.toLowerCase();
 
   // -------------------------------------------------------------------
-  // Skip empty placeholder elements automatically injected by the HTML
-  // parser when the source markup is invalid (e.g. a <p> that ends up
-  // empty because the browser closed it before a disallowed child like
-  // <address>). These empty nodes generate redundant Bricks elements and
-  // should be ignored completely.
+  // Skip entirely-empty p/span elements that the HTML parser injects for
+  // invalid markup (e.g. a bare <p> before a block element).  DO NOT
+  // skip elements that carry classes or attributes — those are valid,
+  // intentional elements (e.g. icon-only spans, color-swatch spans, etc.)
+  // that rely purely on CSS for their visual output.
   // -------------------------------------------------------------------
-  // Skip empty placeholder elements automatically injected by the HTML
-  // parser when the source markup is invalid, but preserve divs with classes
-  if (['p', 'span'].includes(tag) && node.textContent.trim() === '' && node.children.length === 0) {
+  if (['p', 'span'].includes(tag)
+      && node.textContent.trim() === ''
+      && node.children.length === 0
+      && (!node.className || node.className.trim() === '')
+      && node.attributes.length === 0) {
     return null;
+  }
+
+  // -------------------------------------------------------------------
+  // Early-exit: skip all descendants inside a <form> that Bricks' form
+  // element already models internally — avoids duplicate nodes.
+  // This must run BEFORE element creation and child traversal.
+  // -------------------------------------------------------------------
+  if (node.closest('form')) {
+    // Always skip native form controls and list wrappers inside forms
+    if (['input', 'select', 'textarea', 'button', 'label',
+         'ul', 'ol', 'li', 'fieldset', 'legend'].includes(tag)) {
+      return null;
+    }
+    // Skip <div> wrappers whose children are exclusively form controls
+    // (e.g. div.form-group > label + input, div.options-wrapper > li)
+    if (tag === 'div') {
+      const childTags = Array.from(node.children).map(c => c.tagName.toLowerCase());
+      const allFormControls = childTags.length > 0 && childTags.every(t =>
+        ['input', 'select', 'textarea', 'button', 'label', 'ul', 'ol', 'li'].includes(t)
+      );
+      if (allFormControls) return null;
+    }
   }
 
   // Include all divs in the output, even empty ones
@@ -252,7 +276,7 @@ const domNodeToBricks = (node, cssRulesMap = {}, parentId = '0', globalClasses =
   if (tag === 'div' && hasAlertClasses(node)) {
     return processAlertElement(node, options.context || {});
   }
-  // Check for nav elements
+  // Check for nav elements — only process as nav-nested if it has actual <a> links
   if (tag === 'nav' || (tag === 'div' && (
     node.classList.contains('nav') ||
     node.classList.contains('menu') ||
@@ -269,15 +293,22 @@ const domNodeToBricks = (node, cssRulesMap = {}, parentId = '0', globalClasses =
     node.classList.contains('breadcrumb') ||
     node.classList.contains('pagination')
   ))) {
-    return processNavElement(node, {
-      context: options.context || {},
-      cssRulesMap: cssRulesMap,
-      globalClasses: globalClasses,
-      variables: variables
-    });
+    // Only use nav-nested when there are actual <a> link children
+    // (not just buttons) — prevents hero__actions nav from being swallowed
+    const hasLinks = node.querySelectorAll('a').length > 0;
+    if (hasLinks) {
+      return processNavElement(node, {
+        context: options.context || {},
+        cssRulesMap: cssRulesMap,
+        globalClasses: globalClasses,
+        variables: variables
+      });
+    }
+    // Fall through to generic div/section handling for button-only navs
   }
-  // Structure/layout elements
-  else if (tag === 'section' ||
+  // Structure/layout elements — now includes ALL semantic layout tags
+  else if (['section', 'article', 'aside', 'main', 'header', 'footer', 'figure',
+            'nav'].includes(tag) ||
     node.classList.contains('container') ||
     node.classList.contains('row') ||
     node.classList.contains('col-') ||
@@ -286,15 +317,26 @@ const domNodeToBricks = (node, cssRulesMap = {}, parentId = '0', globalClasses =
     processStructureLayoutElement(node, element, tag, options.context || {});
   }
   else if (tag === 'div') {
-    // Process as generic div if no special classes are present
-    element.name = 'div';
-    element.label = getElementLabel(node, 'Div', options.context || {});
-    element.settings.tag = 'div';
+    // A div whose ONLY content is text (no child elements) should be a
+    // Bricks text-basic so the text is not silently discarded.
+    if (node.children.length === 0 && node.textContent.trim() !== '') {
+      element.name = 'text-basic';
+      element.settings.text = node.textContent.trim();
+      element.settings.tag = 'div'; // keep div tag for CSS class targeting
+      element._skipChildren = true;
+    } else {
+      // Process as generic div if no special classes are present
+      element.name = 'div';
+      element.label = getElementLabel(node, 'Div', options.context || {});
+      element.settings.tag = 'div';
+    }
   }
   else if (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tag)) {
     processHeadingElement(node, element, tag, options.context || {});
   }
-  else if (['time', 'mark', 'span', 'address', 'p', 'blockquote'].includes(tag)) {
+  else if (['time', 'mark', 'span', 'address', 'p', 'blockquote',
+            'kbd', 'samp', 'var', 'cite', 'dfn', 'del', 'ins',
+            'sub', 'sup', 'abbr', 'q'].includes(tag)) {
     processTextElement(node, element, tag, allElements, options.context || {});
   }
   else if (['a'].includes(tag)) {
@@ -332,38 +374,14 @@ const domNodeToBricks = (node, cssRulesMap = {}, parentId = '0', globalClasses =
     processImageElement(node, element, tag, options.context || {});
   }
   else if (tag === 'button') {
-    // Check if button is a form submit button outside of a form
-    const isSubmitButton = !node.closest('form') &&
-      (!node.getAttribute('type') || node.getAttribute('type').toLowerCase() === 'submit');
-
-    if (isSubmitButton) {
-      // Create a form element with this button as submit
-      const buttonText = node.textContent?.trim() || node.getAttribute('value')?.trim() || 'Submit';
-      element.name = 'form';
-      element.settings = {
-        fields: [],
-        submitButtonStyle: 'primary',
-        actions: ['email'],
-        successMessage: 'Message successfully sent. We will get back to you as soon as possible.',
-        emailSubject: 'Contact form request',
-        emailTo: 'admin_email',
-        fromName: 'bricks',
-        emailErrorMessage: 'Submission failed. Please reload the page and try to submit the form again.',
-        htmlEmail: true,
-        mailchimpPendingMessage: 'Please check your email to confirm your subscription.',
-        mailchimpErrorMessage: 'Sorry, but we could not subscribe you.',
-        sendgridErrorMessage: 'Sorry, but we could not subscribe you.',
-        showLabels: true,
-        submitButtonText: buttonText
-      };
-      element._skipChildren = true;
-    } else {
-      processButtonElement(node, element, tag, options.context || {});
-    }
+    processButtonElement(node, element, tag, options.context || {});
   }
   else if (tag === 'svg') {
     processSvgElement(node, element, tag, options.context || {});
     element._skipChildren = true; // SVG children are already included in outerHTML
+    // Early-return BEFORE CSS/attribute processing to prevent viewBox/fill/stroke duplication
+    allElements.push(element);
+    return element;
   }
   else if (tag === 'form') {
     const formElement = processFormElement(node, options.context || {});
@@ -373,7 +391,8 @@ const domNodeToBricks = (node, cssRulesMap = {}, parentId = '0', globalClasses =
     // Mark that children have been processed to avoid double processing
     element._skipChildren = true;
   }
-  // Handle standalone form inputs (not inside a form tag)
+  // Handle standalone form inputs/selects/textareas (not inside a form tag)
+  // Instead of wrapping them in a fake form, output as custom code
   else if (['input', 'select', 'textarea'].includes(tag) && !node.closest('form')) {
     const type = node.getAttribute('type')?.toLowerCase();
 
@@ -382,32 +401,22 @@ const domNodeToBricks = (node, cssRulesMap = {}, parentId = '0', globalClasses =
       return null;
     }
 
-    // Create a wrapper form element for standalone inputs
-    const field = processFormField(node, node, options.context || {});
-
-    if (field) {
-      element.name = 'form';
-      element.settings = {
-        fields: [field],
-        submitButtonStyle: 'primary',
-        actions: ['email'],
-        successMessage: 'Message successfully sent. We will get back to you as soon as possible.',
-        emailSubject: 'Contact form request',
-        emailTo: 'admin_email',
-        fromName: 'bricks',
-        emailErrorMessage: 'Submission failed. Please reload the page and try to submit the form again.',
-        htmlEmail: true,
-        mailchimpPendingMessage: 'Please check your email to confirm your subscription.',
-        mailchimpErrorMessage: 'Sorry, but we could not subscribe you.',
-        sendgridErrorMessage: 'Sorry, but we could not subscribe you.',
-        showLabels: true,
-        submitButtonText: 'Submit'
-      };
-      element._skipChildren = true;
-    }
+    // Output the raw HTML as a Bricks custom code element.
+    // executeCode: true — the PHP engine echos all non-PHP content literally,
+    // so raw HTML inside the code block renders correctly in the page.
+    element.name = 'code';
+    element.settings = {
+      code: node.outerHTML,
+      executeCode: true,
+      signature: crypto.randomUUID().replace(/-/g, '').substring(0, 32),
+      user_id: 1,
+      time: Math.floor(Date.now() / 1000)
+    };
+    element._skipChildren = true;
   }
-  else if (['table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td'].includes(tag)) {
+  else if (['table', 'colgroup', 'col', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td'].includes(tag)) {
     const processedElement = processTableElement(node, element, tag, options.context || {});
+    // col elements have no children — respect _skipChildren set by processTableElement
     // Note: Don't return early for td/th here - let CSS processing happen first
   }
   else if (['ul', 'ol', 'li'].includes(tag)) {
@@ -420,8 +429,52 @@ const domNodeToBricks = (node, cssRulesMap = {}, parentId = '0', globalClasses =
   else if (tag === 'video') {
     processVideoElement(node, element, tag, options.context || {});
   }
+  else if (tag === 'code') {
+    // <code> HTML tag → Bricks custom code element (rendered inside parent, no noRoot)
+    element.name = 'code';
+    element.settings = {
+      code: node.innerHTML || node.textContent || '',
+      executeCode: true,
+      signature: crypto.randomUUID().replace(/-/g, '').substring(0, 32),
+      user_id: 1,
+      time: Math.floor(Date.now() / 1000)
+    };
+    element._skipChildren = true;
+  }
   else if (['canvas', 'details', 'summary', 'dialog', 'meter', 'progress', 'script'].includes(tag)) {
     processMiscElement(node, element, tag, options.context || {});
+  }
+  // Definition list elements
+  else if (['dl', 'dt', 'dd'].includes(tag)) {
+    element.name = 'div';
+    element.settings.tag = 'custom';
+    element.settings.customTag = tag;
+    element.label = tag === 'dl' ? 'Definition List' : tag === 'dt' ? 'Term' : 'Definition';
+    // dl itself should not skip children
+  }
+  // figcaption — rendered with its semantic tag so CSS targeting works
+  else if (tag === 'figcaption') {
+    element.name = 'div';
+    element.settings.tag = 'custom';
+    element.settings.customTag = 'figcaption';
+    element.label = 'Figure Caption';
+  }
+  // details/summary — interactive disclosure elements.
+  // Render as div containers so Bricks preserves structure; CSS/JS can style them.
+  else if (['details', 'summary'].includes(tag)) {
+    element.name = 'div';
+    element.settings.tag = 'custom';
+    element.settings.customTag = tag;
+    element.label = tag === 'details' ? 'Details' : 'Summary';
+  }
+  // noRoot rendering suppression issues inside parent containers.
+  // Browsers tolerate </hr> and </br> closing tags gracefully.
+  else if (['br', 'wbr', 'hr'].includes(tag)) {
+    element.name = 'div';
+    element.settings.tag = 'custom';
+    element.settings.customTag = tag;
+    element.label = tag === 'hr' ? 'Horizontal Rule' : tag === 'br' ? 'Line Break' : 'Word Break';
+    element._skipChildren = true;
   }
 
   // Process children (only skip td/th to avoid duplication, allow other table elements to process children)
@@ -439,7 +492,12 @@ const domNodeToBricks = (node, cssRulesMap = {}, parentId = '0', globalClasses =
       const childElement = domNodeToBricks(childNode, cssRulesMap, elementId, globalClasses, allElements, variables, options, `${path}-${index}`);
       if (childElement) {
         if (Array.isArray(childElement)) {
-          childElement.forEach(c => element.children.push(c.id));
+          // Nav (and other array-returning processors) — push ALL sub-elements to allElements
+          // so Bricks can locate each element by ID when building the content tree.
+          childElement.forEach(c => {
+            element.children.push(c.id);
+            if (!allElements.some(e => e.id === c.id)) allElements.push(c);
+          });
         } else {
           element.children.push(childElement.id);
         }
@@ -447,9 +505,16 @@ const domNodeToBricks = (node, cssRulesMap = {}, parentId = '0', globalClasses =
     });
   }
 
-  if (node.closest('form') && ['input', 'select', 'textarea', 'button', 'label'].includes(tag)) {
+  // Skip all structural descendants inside a <form> — Bricks' form element already models
+  // all fields via processFormElement; re-processing them creates duplicate nodes.
+  // (Primary guard is the early-exit above; this is a safety net.)
+  if (node.closest('form') && [
+    'input', 'select', 'textarea', 'button', 'label',
+    'ul', 'ol', 'li', 'fieldset', 'legend'
+  ].includes(tag)) {
     return null;
   }
+
 
   // ------------------------------------------------------------------
   // CSS CLASS / STYLE AGGREGATION

@@ -3,6 +3,8 @@
  * Color conversion, value parsing, and advanced selector matching
  */
 
+import { logger } from '@lib/logger';
+
 // Helper function to check if a value is a color
 export const isColor = (value) => {
     if (typeof value !== 'string') return false;

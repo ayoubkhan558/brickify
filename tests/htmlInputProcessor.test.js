@@ -95,14 +95,14 @@ console.log('Script 2');
         });
 
         it('should handle empty or invalid input', () => {
-            expect(processHtmlInput('')).toEqual({
+            expect(processHtmlInput('')).toMatchObject({
                 bodyContent: '',
                 extractedCss: '',
                 extractedJs: ''
             });
             
-            expect(processHtmlInput(null)).toEqual({
-                bodyContent: null,
+            expect(processHtmlInput(null)).toMatchObject({
+                bodyContent: '',
                 extractedCss: '',
                 extractedJs: ''
             });

@@ -10,7 +10,7 @@ import { getElementLabel } from '@lib/bricks';
  */
 export const processStructureLayoutElement = (node, element, tag, context = {}) => {
   // Default tags in Div, Block, Section, Container element of Bricks
-  const defaultTags = ['div', 'section', 'article', 'nav', 'aside'];
+  const defaultTags = ['div', 'section', 'article', 'nav', 'aside', 'header', 'footer', 'main', 'figure'];
   // Tags that represent major layout/section wrappers
   const layoutTags = ['article', 'aside', 'main', 'nav', 'figure', 'section', 'footer', 'header'];
 

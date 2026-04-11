@@ -4,10 +4,10 @@
  */
 
 // Last update date
-export const LAST_UPDATE_DATE = '5 February, 2026';
+export const LAST_UPDATE_DATE = '10 April, 2026';
 
 // Bricks Builder version this tool targets
-export const BRICKS_VERSION = '2.3';
+export const BRICKS_VERSION = '2.3.2';
 
 // Source identifier for copied elements
 export const BRICKS_SOURCE = 'bricksCopiedElements';
@@ -22,14 +22,15 @@ export const STYLE_MODES = {
 
 // Supported HTML tags for conversion
 export const SUPPORTED_TAGS = {
-    STRUCTURE: ['div', 'section', 'header', 'footer', 'main', 'aside', 'article', 'nav'],
+    STRUCTURE: ['div', 'section', 'header', 'footer', 'main', 'aside', 'article', 'nav', 'figure'],
     TEXT: ['p', 'span', 'blockquote', 'address', 'time', 'mark'],
     HEADINGS: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
-    LISTS: ['ul', 'ol', 'li'],
-    TABLE: ['table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td'],
+    LISTS: ['ul', 'ol', 'li', 'dl', 'dt', 'dd'],
+    TABLE: ['table', 'colgroup', 'col', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td'],
     FORM: ['form', 'input', 'select', 'textarea', 'button', 'label'],
     MEDIA: ['img', 'video', 'audio', 'svg'],
-    MISC: ['a', 'canvas', 'details', 'summary', 'dialog', 'meter', 'progress', 'script']
+    MISC: ['a', 'canvas', 'details', 'summary', 'dialog', 'meter', 'progress', 'script', 'br', 'hr', 'wbr'],
+    INLINE: ['kbd', 'samp', 'var', 'cite', 'dfn', 'del', 'ins', 'sub', 'sup', 'abbr', 'q']
 };
 
 // HTML attribute groups
@@ -61,7 +62,15 @@ export const ELEMENT_SPECIFIC_ATTRIBUTES = {
     option: ['value', 'label', 'selected', 'disabled'],
     button: ['type', 'name', 'value', 'disabled', 'form', 'formaction', 'formenctype', 'formmethod', 'formnovalidate', 'formtarget'],
     video: ['src', 'poster', 'preload', 'autoplay', 'loop', 'muted', 'controls', 'crossorigin', 'referrerpolicy', 'playsinline', 'width', 'height'],
-    audio: ['src', 'preload', 'autoplay', 'loop', 'muted', 'controls', 'crossorigin']
+    audio: ['src', 'preload', 'autoplay', 'loop', 'muted', 'controls', 'crossorigin'],
+    time: ['datetime'],
+    abbr: ['title'],
+    meter: ['min', 'max', 'low', 'high', 'optimum', 'value'],
+    progress: ['value', 'max'],
+    th: ['scope', 'colspan', 'rowspan', 'abbr', 'headers'],
+    td: ['colspan', 'rowspan', 'headers'],
+    col: ['span', 'width'],
+    colgroup: ['span']
 };
 
 export const BOOLEAN_ATTRIBUTES = [
@@ -86,10 +95,13 @@ export const BOOLEAN_ATTRIBUTES = [
 ];
 
 // Alert/notification class patterns
+// NOTE: Keep this list tight — broad terms like 'banner', 'success', 'warning'
+// also appear as general CSS class names for styled divs and would incorrectly
+// trigger the processAlertElement path (which creates name:'alert' elements
+// that Bricks doesn't know how to render). Only use patterns that are
+// unambiguously semantic alert containers.
 export const ALERT_CLASS_PATTERNS = [
-    'alert', 'notification', 'message', 'toast', 'msg', 'flash',
-    'banner', 'notice', 'warning', 'error', 'success', 'info',
-    'callout', 'hint', 'tip', 'note', 'status'
+    'alert', 'notification', 'toast', 'msg', 'flash', 'callout'
 ];
 
 // Container/layout class patterns
