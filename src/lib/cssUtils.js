@@ -115,26 +115,28 @@ export function toHex(val) {
 export const parseValue = (value) => {
     if (typeof value !== 'string') return value;
 
+    const trimmed = value.trim();
+
     // Handle CSS variables
-    if (value.startsWith('var(')) return value;
+    if (trimmed.startsWith('var(')) return trimmed;
 
     // Handle calc() and other CSS functions
-    if (value.includes('(')) return value;
+    if (trimmed.includes('(')) return trimmed;
 
     // Handle numbers with units
-    const numMatch = value.match(/^(-?\d*\.?\d+)([a-z%]*)$/);
+    const numMatch = trimmed.match(/^(-?\d*\.?\d+)([a-z%]*)$/);
     if (numMatch) {
         const num = numMatch[1];
         const unit = numMatch[2];
 
         // For px values, we just want the number
-        if (unit === 'px') return num;
+        if (unit === 'px') return parseFloat(num);
 
         // For other units (%, em, rem, deg, etc.), keep the unit
-        return value;
+        return trimmed;
     }
 
-    return value;
+    return trimmed;
 };
 
 /**
