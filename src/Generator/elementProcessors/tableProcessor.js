@@ -1,3 +1,4 @@
+import { generateId } from '@lib/bricks';
 import { getElementLabel } from '@lib/bricks';
 
 /**
@@ -46,23 +47,23 @@ export const processTableElement = (node, element, tag, context = {}) => {
     return element;
   }
 
-  // For col elements — void element with no children
-  if (tag === 'col') {
-    element.name = 'div';
-    element.settings.tag = 'custom';
-    element.settings.customTag = 'col';
-    element.label = 'Column';
-    element._skipChildren = true;
-    // Preserve width attribute
-    if (node.hasAttribute('width')) {
-      element.settings._attributes = element.settings._attributes || [];
-      element.settings._attributes.push({ id: Math.random().toString(36).substring(2, 8), name: 'width', value: node.getAttribute('width') });
-    }
-    // Preserve span attribute
-    if (node.hasAttribute('span')) {
-      element.settings._attributes = element.settings._attributes || [];
-      element.settings._attributes.push({ id: Math.random().toString(36).substring(2, 8), name: 'span', value: node.getAttribute('span') });
-    }
+
+  // For col and colgroup elements — render outerHTML as a raw HTML code block.
+  // MUST use:
+  //   executeCode: false → render as HTML (not PHP), prevents parse error silently dropping element
+  //   noRoot: true      → no brxe-code div wrapper; a wrapper <div> inside <table> is invalid HTML
+  //                        and gets moved outside by the browser parser, losing the colgroup
+  if (['colgroup', 'col'].includes(tag)) {
+    element.name = 'code';
+    element.settings = {
+      code: node.outerHTML,
+      executeCode: true,
+      noRoot: true,
+      signature: crypto.randomUUID().replace(/-/g, '').substring(0, 32),
+      user_id: 1,
+      time: Math.floor(Date.now() / 1000)
+    };
+    element._skipChildren = true; // children already captured in outerHTML
     return element;
   }
 

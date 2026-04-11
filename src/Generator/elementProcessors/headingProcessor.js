@@ -16,7 +16,21 @@ export const processHeadingElement = (node, element, tag, context = {}) => {
   element.name = 'heading';
   element.label = getElementLabel(node, `${tag.toUpperCase()} Heading`, context);
   element.settings.tag = tag;
-  element.settings.text = node.textContent.trim();
+
+  // If the heading contains child elements (SVG icons, <em>, <br>, <mark>, etc.)
+  // use innerHTML to preserve the full markup in Bricks' rich heading field.
+  // Pure text headings continue to use textContent (cleaner, avoids whitespace issues).
+  if (node.children.length > 0) {
+    element.settings.text = node.innerHTML.trim();
+  } else {
+    element.settings.text = node.textContent.trim();
+  }
+
+  // Headings with inline markup should not have their children re-processed
+  // as separate Bricks elements — the innerHTML already captures everything.
+  if (node.children.length > 0) {
+    element._skipChildren = true;
+  }
 
   return element;
 };
