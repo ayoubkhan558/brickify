@@ -46,9 +46,30 @@ export const processTableElement = (node, element, tag, context = {}) => {
     return element;
   }
 
+  // For col elements — void element with no children
+  if (tag === 'col') {
+    element.name = 'div';
+    element.settings.tag = 'custom';
+    element.settings.customTag = 'col';
+    element.label = 'Column';
+    element._skipChildren = true;
+    // Preserve width attribute
+    if (node.hasAttribute('width')) {
+      element.settings._attributes = element.settings._attributes || [];
+      element.settings._attributes.push({ id: Math.random().toString(36).substring(2, 8), name: 'width', value: node.getAttribute('width') });
+    }
+    // Preserve span attribute
+    if (node.hasAttribute('span')) {
+      element.settings._attributes = element.settings._attributes || [];
+      element.settings._attributes.push({ id: Math.random().toString(36).substring(2, 8), name: 'span', value: node.getAttribute('span') });
+    }
+    return element;
+  }
+
   // Labels for table structure elements
   const labels = {
     table: 'Table',
+    colgroup: 'Column Group',
     thead: 'Table Header',
     tbody: 'Table Body',
     tfoot: 'Table Footer',
@@ -58,6 +79,7 @@ export const processTableElement = (node, element, tag, context = {}) => {
   // Base styles for table structure elements
   const baseStyles = {
     table: 'display: table; border-collapse: collapse; width: 100%;',
+    colgroup: 'display: table-column-group;',
     thead: 'display: table-header-group;',
     tbody: 'display: table-row-group;',
     tfoot: 'display: table-footer-group;',

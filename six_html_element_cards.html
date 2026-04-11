@@ -1,0 +1,699 @@
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  .section {
+    font-family: 'DM Sans', sans-serif;
+    padding: 2rem 1rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    background: transparent;
+  }
+
+  /* ── CARD BASE ── */
+  .card { border-radius: 16px; overflow: hidden; }
+
+  /* ══ CARD 1 · ARTICLE / BLOG POST ══ */
+  .card--article {
+    border: 0.5px solid var(--color-border-tertiary);
+    background: var(--color-background-primary);
+  }
+  .card--article figure { margin: 0; }
+  .card--article figure img { width: 100%; height: 180px; object-fit: cover; display: block; }
+  .card--article figcaption {
+    font-size: 11px;
+    color: var(--color-text-tertiary);
+    padding: 6px 1.25rem;
+    border-bottom: 0.5px solid var(--color-border-tertiary);
+    font-style: italic;
+  }
+  .card--article__body { padding: 1.25rem; }
+  .card--article header { margin-bottom: .75rem; }
+  .card--article__category {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    background: #EAF3DE;
+    color: #3B6D11;
+    padding: 3px 10px;
+    border-radius: 6px;
+    margin-bottom: .5rem;
+  }
+  .card--article h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    line-height: 1.3;
+    margin-bottom: .5rem;
+  }
+  .card--article p { font-size: 14px; color: var(--color-text-secondary); line-height: 1.6; margin-bottom: 1rem; }
+  .card--article__meta { display: flex; align-items: center; gap: 10px; margin-bottom: 1rem; }
+  .card--article__avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: #EEEDFE; color: #534AB7;
+    font-size: 12px; font-weight: 500;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .card--article__author { font-size: 13px; font-weight: 500; color: var(--color-text-primary); }
+  .card--article__date { font-size: 12px; color: var(--color-text-tertiary); }
+  .card--article footer {
+    display: flex; align-items: center; justify-content: space-between;
+    border-top: 0.5px solid var(--color-border-tertiary);
+    padding-top: 1rem; margin-top: .25rem;
+  }
+  .card--article__stats { display: flex; gap: 14px; }
+  .card--article__stat { font-size: 12px; color: var(--color-text-tertiary); display: flex; align-items: center; gap: 4px; }
+  .card--article__stat svg { width: 14px; height: 14px; }
+  .card--article__btn {
+    font-size: 13px; font-weight: 500;
+    background: none; border: 0.5px solid var(--color-border-secondary);
+    border-radius: 8px; padding: 6px 14px; cursor: pointer;
+    color: var(--color-text-primary);
+  }
+  .card--article__btn:hover { background: var(--color-background-secondary); }
+
+  /* ══ CARD 2 · PRODUCT / E-COMMERCE ══ */
+  .card--product {
+    border: 0.5px solid var(--color-border-tertiary);
+    background: var(--color-background-primary);
+  }
+  .card--product__gallery { position: relative; background: #F1EFE8; padding: 2rem 1.5rem 1.5rem; display: flex; align-items: center; justify-content: center; min-height: 200px; }
+  .card--product__badge {
+    position: absolute; top: 12px; left: 12px;
+    background: #FCEBEB; color: #A32D2D;
+    font-size: 11px; font-weight: 500;
+    padding: 3px 10px; border-radius: 6px;
+  }
+  .card--product__wishlist {
+    position: absolute; top: 12px; right: 12px;
+    width: 30px; height: 30px; background: var(--color-background-primary);
+    border-radius: 50%; border: 0.5px solid var(--color-border-tertiary);
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+  .card--product__wishlist svg { width: 14px; height: 14px; }
+  .card--product__img { font-size: 72px; line-height: 1; }
+  .card--product__body { padding: 1.25rem; }
+  .card--product__brand { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--color-text-tertiary); margin-bottom: 4px; }
+  .card--product h2 { font-size: 17px; font-weight: 500; color: var(--color-text-primary); margin-bottom: .5rem; }
+  .card--product__rating { display: flex; align-items: center; gap: 6px; margin-bottom: .75rem; }
+  .card--product__stars { color: #BA7517; font-size: 13px; letter-spacing: 1px; }
+  .card--product__reviews { font-size: 12px; color: var(--color-text-tertiary); }
+  .card--product__variants { display: flex; gap: 6px; margin-bottom: 1rem; }
+  .card--product__swatch {
+    width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; cursor: pointer;
+  }
+  .card--product__swatch--active { border-color: var(--color-text-primary); }
+  .card--product__price-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 1rem; }
+  .card--product__price { font-size: 22px; font-weight: 500; color: var(--color-text-primary); }
+  .card--product__price-old { font-size: 14px; color: var(--color-text-tertiary); text-decoration: line-through; }
+  .card--product__actions { display: flex; gap: 8px; }
+  .card--product__add {
+    flex: 1; background: var(--color-text-primary); color: var(--color-background-primary);
+    border: none; border-radius: 10px; padding: 10px; font-size: 14px; font-weight: 500; cursor: pointer;
+  }
+  .card--product__add:hover { opacity: .85; }
+  .card--product__cart {
+    width: 42px; border: 0.5px solid var(--color-border-secondary);
+    border-radius: 10px; background: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; color: var(--color-text-primary);
+  }
+  .card--product__cart svg { width: 16px; height: 16px; }
+
+  /* ══ CARD 3 · PROFILE / TEAM MEMBER ══ */
+  .card--profile {
+    border: 0.5px solid var(--color-border-tertiary);
+    background: var(--color-background-primary);
+    text-align: center;
+    padding: 2rem 1.25rem 1.25rem;
+  }
+  .card--profile__cover {
+    position: relative;
+    background: linear-gradient(135deg, #EEEDFE 0%, #E1F5EE 100%);
+    height: 80px; margin: -2rem -1.25rem 0; border-radius: 16px 16px 0 0;
+    margin-bottom: 2.5rem;
+  }
+  .card--profile__avatar-wrap {
+    position: absolute; bottom: -28px; left: 50%; transform: translateX(-50%);
+  }
+  .card--profile__avatar {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: #534AB7; color: #EEEDFE;
+    font-size: 20px; font-weight: 500;
+    display: flex; align-items: center; justify-content: center;
+    border: 3px solid var(--color-background-primary);
+  }
+  .card--profile__status {
+    position: absolute; bottom: 2px; right: 2px;
+    width: 12px; height: 12px; background: #1D9E75;
+    border-radius: 50%; border: 2px solid var(--color-background-primary);
+  }
+  .card--profile h2 { font-size: 18px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 2px; }
+  .card--profile__role { font-size: 13px; color: var(--color-text-secondary); margin-bottom: .75rem; }
+  .card--profile__tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-bottom: 1rem; }
+  .card--profile__tag {
+    font-size: 11px; padding: 3px 10px; border-radius: 6px;
+    background: var(--color-background-secondary); color: var(--color-text-secondary);
+    border: 0.5px solid var(--color-border-tertiary);
+  }
+  .card--profile__metrics { display: grid; grid-template-columns: repeat(3,1fr); gap: 1px; background: var(--color-border-tertiary); border: 0.5px solid var(--color-border-tertiary); border-radius: 10px; overflow: hidden; margin-bottom: 1rem; }
+  .card--profile__metric { background: var(--color-background-primary); padding: .75rem .5rem; }
+  .card--profile__metric-val { font-size: 18px; font-weight: 500; color: var(--color-text-primary); }
+  .card--profile__metric-lbl { font-size: 11px; color: var(--color-text-tertiary); }
+  .card--profile__socials { display: flex; justify-content: center; gap: 8px; margin-bottom: 1rem; }
+  .card--profile__social {
+    width: 32px; height: 32px; border-radius: 8px;
+    border: 0.5px solid var(--color-border-tertiary);
+    background: var(--color-background-secondary);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--color-text-secondary);
+    font-size: 12px; font-weight: 600;
+  }
+  .card--profile__cta {
+    width: 100%; padding: 10px; border-radius: 10px;
+    background: none; border: 0.5px solid var(--color-border-secondary);
+    font-size: 14px; font-weight: 500; color: var(--color-text-primary); cursor: pointer;
+  }
+  .card--profile__cta:hover { background: var(--color-background-secondary); }
+
+  /* ══ CARD 4 · FORM / DATA ENTRY ══ */
+  .card--form {
+    border: 0.5px solid var(--color-border-tertiary);
+    background: var(--color-background-primary);
+    padding: 1.5rem 1.25rem;
+  }
+  .card--form header { margin-bottom: 1.25rem; }
+  .card--form__icon { font-size: 24px; margin-bottom: .5rem; }
+  .card--form h2 { font-size: 18px; font-weight: 500; color: var(--color-text-primary); }
+  .card--form__subtitle { font-size: 13px; color: var(--color-text-secondary); margin-top: 2px; }
+  .card--form__group { margin-bottom: 1rem; }
+  .card--form label { display: block; font-size: 13px; font-weight: 500; color: var(--color-text-secondary); margin-bottom: 6px; }
+  .card--form input[type="text"],
+  .card--form input[type="email"],
+  .card--form select,
+  .card--form textarea {
+    width: 100%; padding: 9px 12px; font-size: 14px;
+    border: 0.5px solid var(--color-border-secondary);
+    border-radius: 8px; background: var(--color-background-primary);
+    color: var(--color-text-primary);
+    font-family: 'DM Sans', sans-serif;
+    outline: none;
+  }
+  .card--form input:focus,
+  .card--form select:focus,
+  .card--form textarea:focus { border-color: #7F77DD; box-shadow: 0 0 0 3px #EEEDFE; }
+  .card--form textarea { resize: vertical; min-height: 80px; }
+  .card--form__row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .card--form__checks { display: flex; flex-direction: column; gap: 8px; margin-bottom: 1rem; }
+  .card--form__check { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: var(--color-text-primary); }
+  .card--form__check input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
+  .card--form__range { margin-bottom: 1rem; }
+  .card--form__range-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .card--form__range-val { font-size: 13px; font-weight: 500; color: var(--color-text-primary); }
+  .card--form input[type="range"] { width: 100%; }
+  .card--form__radio-group { display: flex; gap: 8px; }
+  .card--form__radio-opt {
+    flex: 1; border: 0.5px solid var(--color-border-secondary);
+    border-radius: 8px; padding: 8px; text-align: center; cursor: pointer; font-size: 13px; color: var(--color-text-secondary);
+  }
+  .card--form__radio-opt input[type="radio"] { display: none; }
+  .card--form__radio-opt--active { border-color: #7F77DD; background: #EEEDFE; color: #534AB7; }
+  .card--form__submit {
+    width: 100%; padding: 11px; background: var(--color-text-primary); color: var(--color-background-primary);
+    border: none; border-radius: 10px; font-size: 14px; font-weight: 500; cursor: pointer;
+  }
+  .card--form__submit:hover { opacity: .85; }
+  .card--form__helper { font-size: 11px; color: var(--color-text-tertiary); margin-top: 4px; }
+
+  /* ══ CARD 5 · STATS / DASHBOARD ══ */
+  .card--stats {
+    border: 0.5px solid var(--color-border-tertiary);
+    background: var(--color-background-primary);
+    padding: 1.25rem;
+  }
+  .card--stats header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1rem; }
+  .card--stats h2 { font-size: 16px; font-weight: 500; color: var(--color-text-primary); }
+  .card--stats__period {
+    font-size: 11px; padding: 3px 10px; border-radius: 6px;
+    background: var(--color-background-secondary); color: var(--color-text-secondary);
+    border: 0.5px solid var(--color-border-tertiary);
+  }
+  .card--stats__kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 1rem; }
+  .card--stats__kpi { background: var(--color-background-secondary); border-radius: 10px; padding: .75rem 1rem; }
+  .card--stats__kpi-label { font-size: 11px; color: var(--color-text-tertiary); margin-bottom: 4px; }
+  .card--stats__kpi-val { font-size: 22px; font-weight: 500; color: var(--color-text-primary); }
+  .card--stats__kpi-delta { font-size: 11px; font-weight: 500; margin-top: 2px; }
+  .card--stats__kpi-delta--up { color: #1D9E75; }
+  .card--stats__kpi-delta--dn { color: #A32D2D; }
+  .card--stats__chart { margin-bottom: 1rem; }
+  .card--stats__chart-label { font-size: 12px; color: var(--color-text-tertiary); margin-bottom: 8px; }
+  .card--stats__bars { display: flex; align-items: flex-end; gap: 5px; height: 80px; }
+  .card--stats__bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+  .card--stats__bar {
+    width: 100%; border-radius: 4px 4px 0 0;
+    background: var(--color-border-tertiary); transition: background .2s;
+  }
+  .card--stats__bar--active { background: #7F77DD; }
+  .card--stats__bar-x { font-size: 10px; color: var(--color-text-tertiary); }
+  .card--stats__progress { margin-bottom: 1rem; }
+  .card--stats__progress-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .card--stats__progress-label { font-size: 13px; color: var(--color-text-secondary); }
+  .card--stats__progress-pct { font-size: 13px; font-weight: 500; color: var(--color-text-primary); }
+  .card--stats__progress-track { height: 5px; background: var(--color-background-secondary); border-radius: 3px; overflow: hidden; margin-bottom: 10px; }
+  .card--stats__progress-fill { height: 100%; border-radius: 3px; }
+  .card--stats footer { border-top: 0.5px solid var(--color-border-tertiary); padding-top: 1rem; }
+  .card--stats__table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .card--stats__table th { text-align: left; color: var(--color-text-tertiary); font-weight: 400; padding-bottom: 6px; }
+  .card--stats__table td { padding: 5px 0; color: var(--color-text-primary); border-top: 0.5px solid var(--color-border-tertiary); }
+  .card--stats__table td:last-child { text-align: right; }
+  .card--stats__dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+
+  /* ══ CARD 6 · MEDIA / VIDEO ══ */
+  .card--media {
+    border: 0.5px solid var(--color-border-tertiary);
+    background: var(--color-background-primary);
+  }
+  .card--media__player { position: relative; background: #2C2C2A; display: flex; align-items: center; justify-content: center; min-height: 180px; }
+  .card--media__thumbnail { font-size: 64px; opacity: .3; user-select: none; }
+  .card--media__play {
+    position: absolute; width: 52px; height: 52px; border-radius: 50%;
+    background: var(--color-background-primary); border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 12px rgba(0,0,0,.3);
+  }
+  .card--media__play svg { width: 20px; height: 20px; color: #2C2C2A; }
+  .card--media__duration {
+    position: absolute; bottom: 10px; right: 12px;
+    font-size: 11px; font-weight: 500; font-family: 'JetBrains Mono', monospace;
+    background: rgba(0,0,0,.6); color: #fff; padding: 2px 7px; border-radius: 5px;
+  }
+  .card--media__quality {
+    position: absolute; top: 10px; left: 12px;
+    font-size: 10px; font-weight: 500;
+    background: #BA7517; color: #fff; padding: 2px 7px; border-radius: 5px;
+  }
+  .card--media__controls { padding: .75rem 1rem; background: var(--color-background-secondary); border-top: 0.5px solid var(--color-border-tertiary); }
+  .card--media__progress-wrap { margin-bottom: .5rem; }
+  .card--media__progress { width: 100%; appearance: none; height: 4px; border-radius: 2px; outline: none; cursor: pointer; }
+  .card--media__time-row { display: flex; justify-content: space-between; }
+  .card--media__time { font-size: 11px; color: var(--color-text-tertiary); font-family: 'JetBrains Mono', monospace; }
+  .card--media__btns { display: flex; align-items: center; gap: 6px; }
+  .card--media__ctrl-btn {
+    background: none; border: none; cursor: pointer; padding: 5px;
+    color: var(--color-text-secondary); border-radius: 6px;
+  }
+  .card--media__ctrl-btn:hover { background: var(--color-background-primary); }
+  .card--media__ctrl-btn svg { width: 16px; height: 16px; display: block; }
+  .card--media__vol { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+  .card--media__vol input[type="range"] { width: 60px; }
+  .card--media__body { padding: 1.25rem; }
+  .card--media__series { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--color-text-tertiary); margin-bottom: 4px; }
+  .card--media h2 { font-size: 17px; font-weight: 500; color: var(--color-text-primary); margin-bottom: .5rem; }
+  .card--media__desc { font-size: 13px; color: var(--color-text-secondary); line-height: 1.6; margin-bottom: 1rem; }
+  .card--media__meta-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 1rem; }
+  .card--media__pill {
+    font-size: 11px; padding: 3px 10px; border-radius: 6px;
+    background: var(--color-background-secondary); color: var(--color-text-secondary);
+    border: 0.5px solid var(--color-border-tertiary);
+  }
+  .card--media__chapter-list { list-style: none; border-top: 0.5px solid var(--color-border-tertiary); padding-top: .75rem; }
+  .card--media__chapter {
+    display: flex; align-items: center; gap: 10px; padding: 7px 0;
+    border-bottom: 0.5px solid var(--color-border-tertiary); font-size: 13px;
+  }
+  .card--media__chapter:last-child { border-bottom: none; }
+  .card--media__chapter-num { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--color-text-tertiary); width: 20px; flex-shrink: 0; }
+  .card--media__chapter-title { flex: 1; color: var(--color-text-primary); }
+  .card--media__chapter-title--active { color: #534AB7; font-weight: 500; }
+  .card--media__chapter-ts { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--color-text-tertiary); }
+  .card--media footer {
+    border-top: 0.5px solid var(--color-border-tertiary);
+    padding: .75rem 1.25rem;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .card--media__actions { display: flex; gap: 8px; }
+  .card--media__action-btn {
+    font-size: 12px; display: flex; align-items: center; gap: 5px;
+    background: none; border: 0.5px solid var(--color-border-tertiary);
+    border-radius: 8px; padding: 6px 12px; cursor: pointer; color: var(--color-text-secondary);
+  }
+  .card--media__action-btn:hover { background: var(--color-background-secondary); }
+  .card--media__action-btn svg { width: 13px; height: 13px; }
+  .card--media__next { font-size: 12px; color: var(--color-text-tertiary); display: flex; align-items: center; gap: 4px; }
+</style>
+
+<section class="section">
+
+  <!-- ══ CARD 1 · ARTICLE ══ -->
+  <article class="card card--article">
+    <figure>
+      <img src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80" alt="Design systems abstract visualization" loading="lazy">
+      <figcaption>Photo — Unsplash / Chris Lawton</figcaption>
+    </figure>
+    <div class="card--article__body">
+      <header>
+        <span class="card--article__category">Design Systems</span>
+        <h2>Why tokens are the backbone of scalable design</h2>
+      </header>
+      <p>Design tokens abstract your raw values into a shared language between design and code — making sweeping visual changes a single-file affair rather than a multi-sprint saga.</p>
+      <div class="card--article__meta">
+        <div class="card--article__avatar">LK</div>
+        <div>
+          <div class="card--article__author">Leila Kim</div>
+          <div class="card--article__date">31 March 2026 · 6 min read</div>
+        </div>
+      </div>
+      <footer>
+        <div class="card--article__stats">
+          <span class="card--article__stat">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            2.4k
+          </span>
+          <span class="card--article__stat">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            148
+          </span>
+        </div>
+        <button class="card--article__btn">Read article</button>
+      </footer>
+    </div>
+  </article>
+
+  <!-- ══ CARD 2 · PRODUCT ══ -->
+  <article class="card card--product">
+    <div class="card--product__gallery">
+      <span class="card--product__badge">−30%</span>
+      <button class="card--product__wishlist" aria-label="Add to wishlist">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      </button>
+      <div class="card--product__img">🎧</div>
+    </div>
+    <div class="card--product__body">
+      <p class="card--product__brand">SoundLab</p>
+      <h2>Aura Pro Noise-Cancelling Headphones</h2>
+      <div class="card--product__rating">
+        <span class="card--product__stars">★★★★★</span>
+        <span class="card--product__reviews">(3,201 reviews)</span>
+      </div>
+      <div class="card--product__variants">
+        <span class="card--product__swatch card--product__swatch--active" style="background:#2C2C2A;" title="Midnight"></span>
+        <span class="card--product__swatch" style="background:#B5D4F4;" title="Ice Blue"></span>
+        <span class="card--product__swatch" style="background:#F5C4B3;" title="Rose"></span>
+        <span class="card--product__swatch" style="background:#F1EFE8;" title="Cream"></span>
+      </div>
+      <div class="card--product__price-row">
+        <span class="card--product__price">$209</span>
+        <span class="card--product__price-old">$299</span>
+      </div>
+      <div class="card--product__actions">
+        <button class="card--product__add">Add to cart</button>
+        <button class="card--product__cart" aria-label="Quick view">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+        </button>
+      </div>
+    </div>
+  </article>
+
+  <!-- ══ CARD 3 · PROFILE ══ -->
+  <article class="card card--profile">
+    <div class="card--profile__cover">
+      <div class="card--profile__avatar-wrap">
+        <div class="card--profile__avatar">MR</div>
+        <div class="card--profile__status"></div>
+      </div>
+    </div>
+    <h2>Maya Rodriguez</h2>
+    <p class="card--profile__role">Principal Product Designer · Figma</p>
+    <div class="card--profile__tags">
+      <span class="card--profile__tag">Design systems</span>
+      <span class="card--profile__tag">Prototyping</span>
+      <span class="card--profile__tag">UX research</span>
+    </div>
+    <dl class="card--profile__metrics">
+      <div class="card--profile__metric">
+        <dt class="card--profile__metric-lbl">Projects</dt>
+        <dd class="card--profile__metric-val">84</dd>
+      </div>
+      <div class="card--profile__metric">
+        <dt class="card--profile__metric-lbl">Followers</dt>
+        <dd class="card--profile__metric-val">12k</dd>
+      </div>
+      <div class="card--profile__metric">
+        <dt class="card--profile__metric-lbl">Likes</dt>
+        <dd class="card--profile__metric-val">98k</dd>
+      </div>
+    </dl>
+    <nav class="card--profile__socials" aria-label="Social links">
+      <a class="card--profile__social" href="#" aria-label="Twitter">Tw</a>
+      <a class="card--profile__social" href="#" aria-label="LinkedIn">Li</a>
+      <a class="card--profile__social" href="#" aria-label="Dribbble">Dr</a>
+      <a class="card--profile__social" href="#" aria-label="GitHub">Gh</a>
+    </nav>
+    <button class="card--profile__cta">View portfolio</button>
+  </article>
+
+  <!-- ══ CARD 4 · FORM ══ -->
+  <article class="card card--form">
+    <header>
+      <div class="card--form__icon">✉</div>
+      <h2>Send a message</h2>
+      <p class="card--form__subtitle">We reply within one business day.</p>
+    </header>
+
+    <div class="card--form__row">
+      <div class="card--form__group">
+        <label for="cf-first">First name</label>
+        <input type="text" id="cf-first" name="first" placeholder="Ada" autocomplete="given-name">
+      </div>
+      <div class="card--form__group">
+        <label for="cf-last">Last name</label>
+        <input type="text" id="cf-last" name="last" placeholder="Lovelace" autocomplete="family-name">
+      </div>
+    </div>
+
+    <div class="card--form__group">
+      <label for="cf-email">Email address</label>
+      <input type="email" id="cf-email" name="email" placeholder="ada@babbage.io" autocomplete="email">
+    </div>
+
+    <div class="card--form__group">
+      <label for="cf-topic">Topic</label>
+      <select id="cf-topic" name="topic">
+        <option value="">Select a topic…</option>
+        <option>General enquiry</option>
+        <option>Partnership</option>
+        <option>Bug report</option>
+        <option>Billing</option>
+      </select>
+    </div>
+
+    <div class="card--form__group">
+      <label for="cf-msg">Message</label>
+      <textarea id="cf-msg" name="message" placeholder="Tell us what's on your mind…"></textarea>
+      <p class="card--form__helper">Max 500 characters.</p>
+    </div>
+
+    <div class="card--form__range">
+      <div class="card--form__range-row">
+        <label for="cf-urgency">Urgency</label>
+        <span class="card--form__range-val" id="cf-urgency-val">5</span>
+      </div>
+      <input type="range" id="cf-urgency" name="urgency" min="1" max="10" value="5" step="1"
+        oninput="document.getElementById('cf-urgency-val').textContent=this.value">
+    </div>
+
+    <fieldset style="border:none;margin-bottom:1rem;">
+      <legend style="font-size:13px;font-weight:500;color:var(--color-text-secondary);margin-bottom:8px;">Contact preference</legend>
+      <div class="card--form__radio-group">
+        <label class="card--form__radio-opt card--form__radio-opt--active">
+          <input type="radio" name="pref" value="email" checked> Email
+        </label>
+        <label class="card--form__radio-opt">
+          <input type="radio" name="pref" value="phone"> Phone
+        </label>
+        <label class="card--form__radio-opt">
+          <input type="radio" name="pref" value="any"> Any
+        </label>
+      </div>
+    </fieldset>
+
+    <div class="card--form__checks">
+      <label class="card--form__check">
+        <input type="checkbox" name="newsletter" checked>
+        Subscribe to our newsletter
+      </label>
+      <label class="card--form__check">
+        <input type="checkbox" name="terms">
+        I agree to the <a href="#" style="color:var(--color-text-info)">terms of service</a>
+      </label>
+    </div>
+
+    <button class="card--form__submit" type="submit">Send message</button>
+  </article>
+
+  <!-- ══ CARD 5 · STATS / DASHBOARD ══ -->
+  <article class="card card--stats">
+    <header>
+      <h2>Revenue overview</h2>
+      <span class="card--stats__period">Apr 2026</span>
+    </header>
+
+    <div class="card--stats__kpis">
+      <div class="card--stats__kpi">
+        <p class="card--stats__kpi-label">Total revenue</p>
+        <p class="card--stats__kpi-val">$84.2k</p>
+        <p class="card--stats__kpi-delta card--stats__kpi-delta--up">↑ 14.3% vs last month</p>
+      </div>
+      <div class="card--stats__kpi">
+        <p class="card--stats__kpi-label">Active users</p>
+        <p class="card--stats__kpi-val">12,481</p>
+        <p class="card--stats__kpi-delta card--stats__kpi-delta--dn">↓ 2.1% vs last month</p>
+      </div>
+    </div>
+
+    <div class="card--stats__chart">
+      <p class="card--stats__chart-label">Daily revenue (last 7 days)</p>
+      <div class="card--stats__bars">
+        <div class="card--stats__bar-col"><div class="card--stats__bar" style="height:55%"></div><span class="card--stats__bar-x">M</span></div>
+        <div class="card--stats__bar-col"><div class="card--stats__bar" style="height:72%"></div><span class="card--stats__bar-x">T</span></div>
+        <div class="card--stats__bar-col"><div class="card--stats__bar" style="height:60%"></div><span class="card--stats__bar-x">W</span></div>
+        <div class="card--stats__bar-col"><div class="card--stats__bar" style="height:88%"></div><span class="card--stats__bar-x">T</span></div>
+        <div class="card--stats__bar-col"><div class="card--stats__bar card--stats__bar--active" style="height:100%"></div><span class="card--stats__bar-x">F</span></div>
+        <div class="card--stats__bar-col"><div class="card--stats__bar" style="height:45%"></div><span class="card--stats__bar-x">S</span></div>
+        <div class="card--stats__bar-col"><div class="card--stats__bar" style="height:30%"></div><span class="card--stats__bar-x">S</span></div>
+      </div>
+    </div>
+
+    <div class="card--stats__progress">
+      <div class="card--stats__progress-row">
+        <span class="card--stats__progress-label">Product A</span>
+        <span class="card--stats__progress-pct">68%</span>
+      </div>
+      <div class="card--stats__progress-track"><div class="card--stats__progress-fill" style="width:68%;background:#7F77DD;"></div></div>
+      <div class="card--stats__progress-row">
+        <span class="card--stats__progress-label">Product B</span>
+        <span class="card--stats__progress-pct">41%</span>
+      </div>
+      <div class="card--stats__progress-track"><div class="card--stats__progress-fill" style="width:41%;background:#1D9E75;"></div></div>
+      <div class="card--stats__progress-row">
+        <span class="card--stats__progress-label">Product C</span>
+        <span class="card--stats__progress-pct">22%</span>
+      </div>
+      <div class="card--stats__progress-track"><div class="card--stats__progress-fill" style="width:22%;background:#BA7517;"></div></div>
+    </div>
+
+    <footer>
+      <table class="card--stats__table">
+        <thead>
+          <tr>
+            <th>Source</th><th>Sessions</th><th>Revenue</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="card--stats__dot" style="background:#7F77DD;"></span>Organic</td>
+            <td>8,320</td>
+            <td>$42,100</td>
+          </tr>
+          <tr>
+            <td><span class="card--stats__dot" style="background:#1D9E75;"></span>Paid</td>
+            <td>3,140</td>
+            <td>$28,600</td>
+          </tr>
+          <tr>
+            <td><span class="card--stats__dot" style="background:#BA7517;"></span>Referral</td>
+            <td>1,021</td>
+            <td>$13,500</td>
+          </tr>
+        </tbody>
+      </table>
+    </footer>
+  </article>
+
+  <!-- ══ CARD 6 · MEDIA / VIDEO ══ -->
+  <article class="card card--media">
+    <div class="card--media__player">
+      <div class="card--media__thumbnail">🎬</div>
+      <button class="card--media__play" aria-label="Play video">
+        <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      </button>
+      <span class="card--media__quality">4K</span>
+      <span class="card--media__duration">1:24:07</span>
+    </div>
+
+    <div class="card--media__controls">
+      <div class="card--media__progress-wrap">
+        <input type="range" class="card--media__progress" id="vid-progress" min="0" max="100" value="34" aria-label="Playback position">
+      </div>
+      <div class="card--media__time-row">
+        <span class="card--media__time">28:44</span>
+        <span class="card--media__time">1:24:07</span>
+      </div>
+      <div class="card--media__btns">
+        <button class="card--media__ctrl-btn" aria-label="Previous">
+          <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+        </button>
+        <button class="card--media__ctrl-btn" aria-label="Play">
+          <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        </button>
+        <button class="card--media__ctrl-btn" aria-label="Next">
+          <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+        </button>
+        <div class="card--media__vol">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+          <input type="range" min="0" max="100" value="72" step="1" aria-label="Volume">
+        </div>
+      </div>
+    </div>
+
+    <div class="card--media__body">
+      <p class="card--media__series">Episode 7 · Season 2</p>
+      <h2>Building a real-time design system in 2026</h2>
+      <p class="card--media__desc">A deep-dive into token pipelines, multi-brand theming, and the tooling that actually ships — from design hand-off to production CSS in under a minute.</p>
+      <div class="card--media__meta-pills">
+        <span class="card--media__pill">Design</span>
+        <span class="card--media__pill">Engineering</span>
+        <span class="card--media__pill">Advanced</span>
+        <span class="card--media__pill">84 min</span>
+      </div>
+      <ol class="card--media__chapter-list" aria-label="Chapters">
+        <li class="card--media__chapter">
+          <span class="card--media__chapter-num">01</span>
+          <span class="card--media__chapter-title">Token architecture</span>
+          <span class="card--media__chapter-ts">0:00</span>
+        </li>
+        <li class="card--media__chapter">
+          <span class="card--media__chapter-num">02</span>
+          <span class="card--media__chapter-title card--media__chapter-title--active">Multi-brand theming</span>
+          <span class="card--media__chapter-ts">28:12</span>
+        </li>
+        <li class="card--media__chapter">
+          <span class="card--media__chapter-num">03</span>
+          <span class="card--media__chapter-title">CI/CD pipeline</span>
+          <span class="card--media__chapter-ts">52:40</span>
+        </li>
+      </ol>
+    </div>
+
+    <footer>
+      <div class="card--media__actions">
+        <button class="card--media__action-btn" aria-label="Like">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          3.2k
+        </button>
+        <button class="card--media__action-btn" aria-label="Bookmark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+          Save
+        </button>
+      </div>
+      <span class="card--media__next">Up next: Ep 8 →</span>
+    </footer>
+  </article>
+
+</section>

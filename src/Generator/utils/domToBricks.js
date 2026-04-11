@@ -332,34 +332,7 @@ const domNodeToBricks = (node, cssRulesMap = {}, parentId = '0', globalClasses =
     processImageElement(node, element, tag, options.context || {});
   }
   else if (tag === 'button') {
-    // Check if button is a form submit button outside of a form
-    const isSubmitButton = !node.closest('form') &&
-      (!node.getAttribute('type') || node.getAttribute('type').toLowerCase() === 'submit');
-
-    if (isSubmitButton) {
-      // Create a form element with this button as submit
-      const buttonText = node.textContent?.trim() || node.getAttribute('value')?.trim() || 'Submit';
-      element.name = 'form';
-      element.settings = {
-        fields: [],
-        submitButtonStyle: 'primary',
-        actions: ['email'],
-        successMessage: 'Message successfully sent. We will get back to you as soon as possible.',
-        emailSubject: 'Contact form request',
-        emailTo: 'admin_email',
-        fromName: 'bricks',
-        emailErrorMessage: 'Submission failed. Please reload the page and try to submit the form again.',
-        htmlEmail: true,
-        mailchimpPendingMessage: 'Please check your email to confirm your subscription.',
-        mailchimpErrorMessage: 'Sorry, but we could not subscribe you.',
-        sendgridErrorMessage: 'Sorry, but we could not subscribe you.',
-        showLabels: true,
-        submitButtonText: buttonText
-      };
-      element._skipChildren = true;
-    } else {
-      processButtonElement(node, element, tag, options.context || {});
-    }
+    processButtonElement(node, element, tag, options.context || {});
   }
   else if (tag === 'svg') {
     processSvgElement(node, element, tag, options.context || {});
@@ -373,7 +346,8 @@ const domNodeToBricks = (node, cssRulesMap = {}, parentId = '0', globalClasses =
     // Mark that children have been processed to avoid double processing
     element._skipChildren = true;
   }
-  // Handle standalone form inputs (not inside a form tag)
+  // Handle standalone form inputs/selects/textareas (not inside a form tag)
+  // Instead of wrapping them in a fake form, output as custom code
   else if (['input', 'select', 'textarea'].includes(tag) && !node.closest('form')) {
     const type = node.getAttribute('type')?.toLowerCase();
 
@@ -382,29 +356,17 @@ const domNodeToBricks = (node, cssRulesMap = {}, parentId = '0', globalClasses =
       return null;
     }
 
-    // Create a wrapper form element for standalone inputs
-    const field = processFormField(node, node, options.context || {});
-
-    if (field) {
-      element.name = 'form';
-      element.settings = {
-        fields: [field],
-        submitButtonStyle: 'primary',
-        actions: ['email'],
-        successMessage: 'Message successfully sent. We will get back to you as soon as possible.',
-        emailSubject: 'Contact form request',
-        emailTo: 'admin_email',
-        fromName: 'bricks',
-        emailErrorMessage: 'Submission failed. Please reload the page and try to submit the form again.',
-        htmlEmail: true,
-        mailchimpPendingMessage: 'Please check your email to confirm your subscription.',
-        mailchimpErrorMessage: 'Sorry, but we could not subscribe you.',
-        sendgridErrorMessage: 'Sorry, but we could not subscribe you.',
-        showLabels: true,
-        submitButtonText: 'Submit'
-      };
-      element._skipChildren = true;
-    }
+    // Output the raw HTML as a Bricks custom code element
+    element.name = 'code';
+    element.settings = {
+      code: node.outerHTML,
+      executeCode: true,
+      noRoot: true,
+      signature: crypto.randomUUID().replace(/-/g, '').substring(0, 32),
+      user_id: 1,
+      time: Math.floor(Date.now() / 1000)
+    };
+    element._skipChildren = true;
   }
   else if (['table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td'].includes(tag)) {
     const processedElement = processTableElement(node, element, tag, options.context || {});
@@ -419,6 +381,19 @@ const domNodeToBricks = (node, cssRulesMap = {}, parentId = '0', globalClasses =
   }
   else if (tag === 'video') {
     processVideoElement(node, element, tag, options.context || {});
+  }
+  else if (tag === 'code') {
+    // <code> HTML tag → Bricks custom code element
+    element.name = 'code';
+    element.settings = {
+      code: node.innerHTML || node.textContent || '',
+      executeCode: true,
+      noRoot: true,
+      signature: crypto.randomUUID().replace(/-/g, '').substring(0, 32),
+      user_id: 1,
+      time: Math.floor(Date.now() / 1000)
+    };
+    element._skipChildren = true;
   }
   else if (['canvas', 'details', 'summary', 'dialog', 'meter', 'progress', 'script'].includes(tag)) {
     processMiscElement(node, element, tag, options.context || {});

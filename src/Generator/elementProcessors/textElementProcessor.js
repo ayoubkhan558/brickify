@@ -15,7 +15,7 @@ const hasFormattingTags = (node) => {
 };
 
 /**
- * Processes text-related elements (p, span, address, time, mark, blockquote)
+ * Processes text-related elements (p, span, address, time, mark, blockquote, kbd, abbr, etc.)
  * @param {Node} node - The DOM node to process
  * @param {Object} element - The element object to populate
  * @param {string} tag - The HTML tag name
@@ -70,7 +70,24 @@ export const processTextElement = (node, element, tag, allElements, context = {}
     return element;
   }
 
-  // Default case for other elements
+  // Handle semantic inline elements that should be rendered as custom-tag text-basic
+  // These are inline elements that carry semantic meaning: kbd, abbr, del, ins, sub, sup, etc.
+  const semanticInlineTags = ['kbd', 'samp', 'var', 'cite', 'dfn', 'del', 'ins', 'sub', 'sup', 'abbr', 'q'];
+  if (semanticInlineTags.includes(tag)) {
+    // Use innerHTML to preserve any inner formatting (e.g. nested tags)
+    const hasInnerFormatting = node.children.length > 0;
+    element.settings.text = hasInnerFormatting ? node.innerHTML : textContent;
+    element.name = hasInnerFormatting ? 'text' : 'text-basic';
+    element.label = getElementLabel(node, tag.toUpperCase(), context);
+    element.settings.tag = 'custom';
+    element.settings.customTag = tag;
+    // For abbr, preserve the title attribute — it will be picked up by processAttributes
+    // but we mark it here explicitly for clarity
+    element._skipTextNodes = true;
+    return element;
+  }
+
+  // Default case for other elements (span, time, mark, address, etc.)
   // Check for formatting in inline elements as well
   if (hasFormatting) {
     element.settings.text = node.innerHTML;
