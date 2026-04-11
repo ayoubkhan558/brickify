@@ -3,7 +3,7 @@ import { logger } from '@lib/logger';
 import { sanitizeClassName } from '@lib/helpers';
 import { getElementLabel } from '@lib/bricks';
 import { ALERT_CLASS_PATTERNS, CONTAINER_CLASS_PATTERNS } from '@config/constants';
-import { buildCssMap, parseCssDeclarations, matchCSSSelectors, matchCSSSelectorsPerClass } from '@generator/utils/cssParser';
+import { buildCssMap, parseCssDeclarations, matchCSSSelectors, matchCSSSelectorsPerClass, mapCssPropertiesToBricksPseudo, parsePseudoFromSelector, normalizePseudoSelector } from '@generator/utils/cssParser';
 import { getBricksFieldType, processFormField, processFormElement } from "@generator/elementProcessors/formProcessor"
 import { processAudioElement } from '@generator/elementProcessors/audioProcessor';
 import { processVideoElement } from '@generator/elementProcessors/videoProcessor';
@@ -538,33 +538,45 @@ const domNodeToBricks = (node, cssRulesMap = {}, parentId = '0', globalClasses =
     // Handle pseudo-elements for ID
     if (pseudoSelectors.length > 0) {
       let customCss = '';
-      pseudoSelectors.forEach(({ selector, properties }) => {
-        // Check if this is a pseudo-class selector
-        const pseudoClassMatch = selector.match(/:(\w+)$/);
-        if (pseudoClassMatch) {
-          // Extract pseudo-class and base selector
-          const pseudoClass = pseudoClassMatch[1];
-          const baseSelector = selector.substring(0, selector.lastIndexOf(':'));
+      pseudoSelectors.forEach(({ selector, properties, pseudo, baseSelector: psBase }) => {
+        // Parse properties to object if needed
+        const propsObject = typeof properties === 'object' ? properties
+          : typeof properties === 'string'
+            ? (() => {
+              const r = {};
+              properties.split(';').filter(p => p.trim()).forEach(decl => {
+                const ci = decl.indexOf(':');
+                if (ci > 0) { r[decl.substring(0, ci).trim()] = decl.substring(ci + 1).trim(); }
+              });
+              return r;
+            })()
+            : {};
 
-          // Check if the base selector matches our element
-          if (baseSelector === `#${node.id}` || baseSelector === tag ||
-            (baseSelector.startsWith('.') && node.classList.contains(baseSelector.substring(1)))) {
-            // Parse the pseudo-class styles
-            const pseudoStyles = parseCssDeclarations(properties, selector, variables);
-            Object.entries(pseudoStyles).forEach(([prop, value]) => {
-              element.settings[`${prop}:${pseudoClass}`] = value;
-            });
-          } else {
-            // Add as custom CSS if it doesn't match
-            const propsFormatted = properties.split(';').filter(p => p.trim()).join(';\n  ');
-            // Escape dots in selectors to prevent malformed CSS
+        // If we have pseudo metadata from the matcher, use natve mapping
+        if (pseudo) {
+          const { mapped, unmapped } = mapCssPropertiesToBricksPseudo(propsObject, pseudo);
+
+          // Apply mapped properties natively to the element settings
+          Object.entries(mapped).forEach(([key, value]) => {
+            if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+              if (!element.settings[key]) element.settings[key] = {};
+              Object.assign(element.settings[key], value);
+            } else {
+              element.settings[key] = value;
+            }
+          });
+
+          // Unmapped properties go to custom CSS
+          if (Object.keys(unmapped).length > 0) {
+            const propsFormatted = Object.entries(unmapped)
+              .map(([p, v]) => `${p}: ${v}`).join(';\n  ');
             const escapedSelector = selector.replace(/\./g, '\\.');
             customCss += `${escapedSelector} {\n  ${propsFormatted};\n}\n`;
           }
         } else {
-          // Handle as regular custom CSS
-          const propsFormatted = properties.split(';').filter(p => p.trim()).join(';\n  ');
-          // Escape dots in selectors to prevent malformed CSS
+          // Fallback: add as regular custom CSS
+          const propsFormatted = Object.entries(propsObject)
+            .map(([p, v]) => `${p}: ${v}`).join(';\n  ');
           const escapedSelector = selector.replace(/\./g, '\\.');
           customCss += `${escapedSelector} {\n  ${propsFormatted};\n}\n`;
         }
@@ -633,70 +645,101 @@ const domNodeToBricks = (node, cssRulesMap = {}, parentId = '0', globalClasses =
       // Handle pseudo-selectors for the first class only
       if (index === 0 && perClassPseudos.length > 0) {
         let customCss = '';
-        perClassPseudos.forEach(({ selector, properties }) => {
-          // Check if this is a pseudo-class selector
-          const pseudoClassMatch = selector.match(/:(\w+)$/);
-
+        perClassPseudos.forEach(({ selector, properties, pseudo, baseSelector: psBase }) => {
           const isMergeableSelector = options.context?.mergeNonClassSelectors;
 
-          if (pseudoClassMatch) {
-            // Extract pseudo-class and base selector
-            const pseudoClass = pseudoClassMatch[1];
-            const baseSelector = selector.substring(0, selector.lastIndexOf(':'));
+          // Parse string properties to object helper
+          const parseStringProps = (props) => {
+            if (typeof props === 'object') return props;
+            if (typeof props !== 'string') return {};
+            const result = {};
+            props.split(';').filter(p => p.trim()).forEach(decl => {
+              const colonIndex = decl.indexOf(':');
+              if (colonIndex > 0) {
+                const prop = decl.substring(0, colonIndex).trim();
+                const val = decl.substring(colonIndex + 1).trim();
+                if (prop && val) result[prop] = val;
+              }
+            });
+            return result;
+          };
 
-            // Parse string properties to object helper
-            const parseStringProps = (props) => {
-              if (typeof props === 'object') return props;
-              if (typeof props !== 'string') return {};
-              const result = {};
-              props.split(';').filter(p => p.trim()).forEach(decl => {
-                const colonIndex = decl.indexOf(':');
-                if (colonIndex > 0) {
-                  const prop = decl.substring(0, colonIndex).trim();
-                  const val = decl.substring(colonIndex + 1).trim();
-                  if (prop && val) result[prop] = val;
-                }
-              });
-              return result;
-            };
+          // Format properties helper for custom CSS output
+          const formatProps = (props) => {
+            if (typeof props === 'string') {
+              return props.split(';').filter(p => p.trim()).join(';\n  ');
+            } else if (typeof props === 'object') {
+              return Object.entries(props).map(([p, v]) => `${p}: ${v}`).join(';\n  ');
+            }
+            return '';
+          };
+
+          // ---- Pseudo selectors (with pseudo metadata from matcher) ----
+          if (pseudo) {
+            // Parse properties to object
+            const propsObject = parseStringProps(properties);
+
+            // Determine which class to target: use the base selector's class if it matches
+            const pseudoParsed = parsePseudoFromSelector(selector);
+            const baseForClass = pseudoParsed.baseSelector || psBase || '';
+
+            // Check if the base selector directly matches a class on this element
+            const isSimpleClassMatch = baseForClass.startsWith('.') &&
+              node.classList.contains(baseForClass.substring(1));
+            const isIdMatch = baseForClass === `#${node.id}`;
+            const isTagMatch = baseForClass === tag;
 
             // Check if selector contains a class that matches this element
-            const classMatches = baseSelector.match(/\.([a-zA-Z0-9_-]+)/g);
-            const containsMatchingClass = classMatches && classMatches.some(cls =>
-              node.classList.contains(cls.substring(1))
+            const classMatches = baseForClass.match(/\.([a-zA-Z0-9_-]+)/g);
+            const containsMatchingClass = classMatches && classMatches.some(c =>
+              node.classList.contains(c.substring(1))
             );
 
-            // Check if the base selector matches our element
-            if (baseSelector === `#${node.id}` || baseSelector === tag ||
-              (baseSelector.startsWith('.') && node.classList.contains(baseSelector.substring(1)))) {
-              // Parse the pseudo-class styles
-              const propsObject = parseStringProps(properties);
-              const pseudoStyles = parseCssDeclarations(propsObject, selector, variables);
-              Object.entries(pseudoStyles).forEach(([prop, value]) => {
-                targetClass.settings[`${prop}:${pseudoClass}`] = value;
+            if (isSimpleClassMatch || isIdMatch || isTagMatch) {
+              // Direct match — map to native Bricks pseudo settings
+              const { mapped, unmapped } = mapCssPropertiesToBricksPseudo(propsObject, pseudo);
+
+              // Apply mapped properties to the target class settings
+              Object.entries(mapped).forEach(([key, value]) => {
+                if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                  if (!targetClass.settings[key]) targetClass.settings[key] = {};
+                  Object.assign(targetClass.settings[key], value);
+                } else {
+                  targetClass.settings[key] = value;
+                }
               });
-            } else if (isMergeableSelector && (containsMatchingClass || baseSelector.startsWith('[') || baseSelector.includes('['))) {
-              // Merge pseudo-class styles for complex selectors with matching class
-              const propsObject = parseStringProps(properties);
-              const pseudoStyles = parseCssDeclarations(propsObject, selector, variables);
-              Object.entries(pseudoStyles).forEach(([prop, value]) => {
-                targetClass.settings[`${prop}:${pseudoClass}`] = value;
-              });
-            } else {
-              // Add as custom CSS if it doesn't match
-              let propsFormatted;
-              if (typeof properties === 'string') {
-                propsFormatted = properties.split(';').filter(p => p.trim()).join(';\n  ');
-              } else if (typeof properties === 'object') {
-                propsFormatted = Object.entries(properties)
-                  .map(([prop, val]) => `${prop}: ${val}`)
-                  .join(';\n  ');
-              } else {
-                propsFormatted = '';
+
+              // Unmapped properties go to custom CSS
+              if (Object.keys(unmapped).length > 0) {
+                const propsFormatted = Object.entries(unmapped)
+                  .map(([p, v]) => `${p}: ${v}`).join(';\n  ');
+                customCss += `${selector} {\n  ${propsFormatted};\n}\n`;
               }
+            } else if (isMergeableSelector && (containsMatchingClass || baseForClass.startsWith('[') || baseForClass.includes('['))) {
+              // Merge pseudo styles for complex selectors with matching class
+              const { mapped, unmapped } = mapCssPropertiesToBricksPseudo(propsObject, pseudo);
+
+              Object.entries(mapped).forEach(([key, value]) => {
+                if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                  if (!targetClass.settings[key]) targetClass.settings[key] = {};
+                  Object.assign(targetClass.settings[key], value);
+                } else {
+                  targetClass.settings[key] = value;
+                }
+              });
+
+              if (Object.keys(unmapped).length > 0) {
+                const propsFormatted = Object.entries(unmapped)
+                  .map(([p, v]) => `${p}: ${v}`).join(';\n  ');
+                customCss += `${selector} {\n  ${propsFormatted};\n}\n`;
+              }
+            } else {
+              // Non-matching selector — add as custom CSS
+              const propsFormatted = formatProps(properties);
               customCss += `${selector} {\n  ${propsFormatted};\n}\n`;
             }
           } else {
+            // ---- Non-pseudo selectors (complex selectors, etc.) ----
             // Handle complex selectors (child >, attribute [], descendant, multiple, etc.)
             const isTagSelector = selector === tag;
             const isAttributeSelector = selector.startsWith('[') || selector.includes('[');
@@ -705,35 +748,9 @@ const domNodeToBricks = (node, cssRulesMap = {}, parentId = '0', globalClasses =
 
             // Check if selector contains a class that matches this element
             const classMatches = selector.match(/\.([a-zA-Z0-9_-]+)/g);
-            const containsMatchingClass = classMatches && classMatches.some(cls =>
-              node.classList.contains(cls.substring(1))
+            const containsMatchingClass = classMatches && classMatches.some(c =>
+              node.classList.contains(c.substring(1))
             );
-
-            // Format properties helper for custom CSS output
-            const formatProps = (props) => {
-              if (typeof props === 'string') {
-                return props.split(';').filter(p => p.trim()).join(';\n  ');
-              } else if (typeof props === 'object') {
-                return Object.entries(props).map(([p, v]) => `${p}: ${v}`).join(';\n  ');
-              }
-              return '';
-            };
-
-            // Parse string properties to object
-            const parseStringProps = (props) => {
-              if (typeof props === 'object') return props;
-              if (typeof props !== 'string') return {};
-              const result = {};
-              props.split(';').filter(p => p.trim()).forEach(decl => {
-                const colonIndex = decl.indexOf(':');
-                if (colonIndex > 0) {
-                  const prop = decl.substring(0, colonIndex).trim();
-                  const val = decl.substring(colonIndex + 1).trim();
-                  if (prop && val) result[prop] = val;
-                }
-              });
-              return result;
-            };
 
             if (isMergeableSelector && (isTagSelector || containsMatchingClass || isAttributeSelector)) {
               // When merge is enabled, merge complex selector styles into the class

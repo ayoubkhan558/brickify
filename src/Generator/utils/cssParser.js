@@ -18,6 +18,256 @@ import { logger } from '@lib/logger';
 import * as csstree from 'css-tree';
 
 
+// =====================================================================
+// Pseudo-Selector Utilities
+// =====================================================================
+
+/**
+ * Bricks-supported pseudo-classes (single colon)
+ * These map to settings keys like `_typography:hover`, `_background:active`, etc.
+ */
+export const BRICKS_PSEUDO_CLASSES = [
+  'hover', 'active', 'focus', 'visited', 'disabled',
+  'empty', 'first-child', 'last-child', 'first-of-type', 'last-of-type',
+  'only-child', 'only-of-type', 'nth-child', 'nth-last-child',
+  'nth-of-type', 'nth-last-of-type', 'not', 'checked', 'invalid',
+  'valid', 'required', 'optional', 'read-only', 'read-write',
+  'focus-within', 'focus-visible', 'any-link', 'link',
+];
+
+/**
+ * Bricks-supported pseudo-elements (double colon — also accept single-colon legacy syntax)
+ * These map to settings keys like `_typography::before`, `_content::before`, etc.
+ */
+export const BRICKS_PSEUDO_ELEMENTS = [
+  'before', 'after', 'first-line', 'first-letter',
+  'placeholder', 'selection', 'marker', 'backdrop',
+];
+
+/**
+ * Normalize legacy single-colon pseudo-element selectors to double-colon.
+ * e.g. `.foo:before` → `.foo::before`, `.bar:after` → `.bar::after`
+ * Does NOT touch pseudo-classes like `:hover`.
+ */
+export function normalizePseudoSelector(selector) {
+  // Match single-colon pseudo-elements and promote to double-colon
+  // We need a negative lookbehind for `:` so we don't touch `::` that's already correct
+  return selector.replace(
+    new RegExp(`(?<!:):(${BRICKS_PSEUDO_ELEMENTS.join('|')})(?![\\w-])`, 'g'),
+    '::$1'
+  );
+}
+
+/**
+ * Extract the base selector and the pseudo part from a full selector.
+ * Handles both pseudo-classes (`:hover`) and pseudo-elements (`::before`).
+ *
+ * @param {string} selector - Full CSS selector like `.card::before` or `.btn:hover`
+ * @returns {{ baseSelector: string, pseudo: string, pseudoType: 'element'|'class'|null }}
+ */
+export function parsePseudoFromSelector(selector) {
+  // Normalize first
+  const normalized = normalizePseudoSelector(selector);
+
+  // Try pseudo-element first (::before, ::after, etc.)
+  const pseudoElementMatch = normalized.match(
+    /^(.+?)(::(?:[a-zA-Z][a-zA-Z0-9-]*))(?:\(([^)]*)\))?$/
+  );
+  if (pseudoElementMatch) {
+    const pseudoPart = pseudoElementMatch[2] + (pseudoElementMatch[3] ? `(${pseudoElementMatch[3]})` : '');
+    return {
+      baseSelector: pseudoElementMatch[1].trim(),
+      pseudo: pseudoPart,         // e.g. "::before"
+      pseudoRaw: pseudoPart.replace(/^::/, ''),  // e.g. "before"
+      pseudoType: 'element'
+    };
+  }
+
+  // Try pseudo-class (:hover, :nth-child(2), etc.)
+  // Must not match `::` (already handled above)
+  const pseudoClassMatch = normalized.match(
+    /^(.+?)(:(?:[a-zA-Z][a-zA-Z0-9-]*)(?:\([^)]*\))?)$/
+  );
+  if (pseudoClassMatch) {
+    const pseudoPart = pseudoClassMatch[2];
+    return {
+      baseSelector: pseudoClassMatch[1].trim(),
+      pseudo: pseudoPart,         // e.g. ":hover"
+      pseudoRaw: pseudoPart.replace(/^:/, ''),  // e.g. "hover"
+      pseudoType: 'class'
+    };
+  }
+
+  return { baseSelector: selector, pseudo: null, pseudoRaw: null, pseudoType: null };
+}
+
+/**
+ * Map a set of CSS properties to Bricks native pseudo settings.
+ *
+ * @param {Object} propsObject  – e.g. { color: 'red', 'font-size': '14px', content: '""' }
+ * @param {string} pseudo       – The pseudo suffix, e.g. "::before" or ":hover"
+ * @returns {{ mapped: Object, unmapped: Object }}
+ *   - mapped:  Bricks settings keyed like `_typography::before`
+ *   - unmapped: CSS properties that couldn't be mapped natively
+ */
+export function mapCssPropertiesToBricksPseudo(propsObject, pseudo) {
+  const mapped = {};
+  const unmapped = {};
+
+  Object.entries(propsObject).forEach(([prop, val]) => {
+    // --- content property (only meaningful for ::before / ::after) ---
+    if (prop === 'content') {
+      mapped[`_content${pseudo}`] = val.replace(/^"|"$/g, '').replace(/^'|'$/g, '');
+      return;
+    }
+
+    // --- Typography-related ---
+    const typographyProps = [
+      'color', 'font-size', 'font-weight', 'font-style', 'font-family',
+      'line-height', 'letter-spacing', 'text-align', 'text-transform',
+      'text-decoration', 'white-space', 'text-wrap', 'text-shadow',
+      'word-spacing', 'text-indent', 'text-overflow', 'word-break',
+    ];
+    if (typographyProps.includes(prop)) {
+      const key = `_typography${pseudo}`;
+      if (!mapped[key]) mapped[key] = {};
+      if (prop === 'color') {
+        mapped[key].color = { raw: val };
+      } else if (prop === 'font-size') {
+        mapped[key]['font-size'] = val;
+      } else if (prop === 'font-weight') {
+        mapped[key]['font-weight'] = val;
+      } else if (prop === 'font-style') {
+        mapped[key]['font-style'] = val;
+      } else if (prop === 'font-family') {
+        mapped[key]['font-family'] = val;
+      } else if (prop === 'line-height') {
+        mapped[key]['line-height'] = val;
+      } else if (prop === 'letter-spacing') {
+        mapped[key]['letter-spacing'] = val;
+      } else if (prop === 'text-align') {
+        mapped[key]['text-align'] = val;
+      } else if (prop === 'text-transform') {
+        mapped[key]['text-transform'] = val;
+      } else if (prop === 'text-decoration') {
+        mapped[key]['text-decoration'] = val;
+      } else if (prop === 'text-shadow') {
+        mapped[key]['text-shadow'] = val;
+      } else {
+        // Remaining typography props go as-is
+        mapped[key][prop] = val;
+      }
+      return;
+    }
+
+    // --- Background-related ---
+    const backgroundProps = [
+      'background', 'background-color', 'background-image', 'background-repeat',
+      'background-size', 'background-position', 'background-attachment',
+      'background-blend-mode', 'background-origin', 'background-clip',
+      '-webkit-background-clip',
+    ];
+    if (backgroundProps.includes(prop)) {
+      const key = `_background${pseudo}`;
+      if (!mapped[key]) mapped[key] = {};
+      if (prop === 'background-color' || prop === 'background') {
+        mapped[key].color = { raw: val };
+      } else if (prop === 'background-image') {
+        mapped[key].image = { url: val };
+      } else {
+        mapped[key][prop] = val;
+      }
+      return;
+    }
+
+    // --- Border-related ---
+    const borderProps = [
+      'border', 'border-width', 'border-style', 'border-color',
+      'border-radius', 'border-top-width', 'border-right-width',
+      'border-bottom-width', 'border-left-width',
+      'border-top-color', 'border-right-color',
+      'border-bottom-color', 'border-left-color',
+    ];
+    if (borderProps.includes(prop)) {
+      const key = `_border${pseudo}`;
+      if (!mapped[key]) mapped[key] = {};
+      if (prop === 'border-color') {
+        mapped[key].color = { raw: val };
+      } else if (prop === 'border-radius') {
+        mapped[key].radius = val;
+      } else if (prop === 'border-width') {
+        mapped[key].width = val;
+      } else if (prop === 'border-style') {
+        mapped[key].style = val;
+      } else {
+        mapped[key][prop] = val;
+      }
+      return;
+    }
+
+    // --- Box shadow ---
+    if (prop === 'box-shadow') {
+      mapped[`_boxShadow${pseudo}`] = val;
+      return;
+    }
+
+    // --- Layout / sizing / spacing ---
+    const layoutProps = [
+      'width', 'height', 'min-width', 'max-width', 'min-height', 'max-height',
+      'margin', 'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
+      'padding', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
+      'display', 'position', 'top', 'right', 'bottom', 'left', 'z-index',
+      'opacity', 'overflow', 'overflow-x', 'overflow-y', 'visibility',
+      'pointer-events', 'cursor',
+    ];
+    if (layoutProps.includes(prop)) {
+      // These get the pseudo suffix directly on the Bricks setting key
+      // e.g. _width::before, _opacity:hover
+      const bricksProp = `_${prop.replace(/-([a-z])/g, (_, l) => l.toUpperCase())}`;
+      mapped[`${bricksProp}${pseudo}`] = val;
+      return;
+    }
+
+    // --- Transform ---
+    if (prop === 'transform') {
+      mapped[`_transform${pseudo}`] = val;
+      return;
+    }
+
+    // --- Transition ---
+    if (prop === 'transition') {
+      mapped[`_transition${pseudo}`] = val;
+      return;
+    }
+
+    // --- Filter / backdrop-filter ---
+    if (prop === 'filter' || prop === 'backdrop-filter') {
+      const bricksProp = prop === 'filter' ? '_cssFilter' : '_backdropFilter';
+      mapped[`${bricksProp}${pseudo}`] = val;
+      return;
+    }
+
+    // --- Flex / grid item props ---
+    const flexGridProps = [
+      'flex-direction', 'flex-wrap', 'justify-content', 'align-items',
+      'align-content', 'flex-grow', 'flex-shrink', 'flex-basis',
+      'align-self', 'order', 'gap', 'row-gap', 'column-gap',
+      'grid-column', 'grid-row', 'grid-area',
+    ];
+    if (flexGridProps.includes(prop)) {
+      const bricksProp = `_${prop.replace(/-([a-z])/g, (_, l) => l.toUpperCase())}`;
+      mapped[`${bricksProp}${pseudo}`] = val;
+      return;
+    }
+
+    // --- Unmapped: will go into custom CSS ---
+    unmapped[prop] = val;
+  });
+
+  return { mapped, unmapped };
+}
+
+
 
 // CSS properties Bricks has native controls for and how to map them
 export const getCssPropMappers = (settings) => {
@@ -355,120 +605,77 @@ export function matchCSSSelectors(element, cssMap) {
 
   // Helper to parse CSS properties string into object
   const parseProperties = (propertiesString) => {
+    if (typeof propertiesString === 'object') return propertiesString;
     const properties = {};
     const declarations = propertiesString.split(';').filter(decl => decl.trim());
 
     declarations.forEach(decl => {
-      const [property, value] = decl.split(':').map(part => part.trim());
-      if (property && value) {
-        properties[property] = value;
+      const colonIndex = decl.indexOf(':');
+      if (colonIndex > 0) {
+        const property = decl.substring(0, colonIndex).trim();
+        const value = decl.substring(colonIndex + 1).trim();
+        if (property && value) {
+          properties[property] = value;
+        }
       }
     });
 
     return properties;
   };
 
+  // Helper: check if element matches base selector (with fallback)
+  const elementMatchesBase = (baseSelector) => {
+    try {
+      return element.matches(baseSelector);
+    } catch (e) {
+      try {
+        const matchingElements = doc.querySelectorAll(baseSelector);
+        return Array.from(matchingElements).includes(element);
+      } catch (err) {
+        return false;
+      }
+    }
+  };
+
   // Check each CSS selector against the element
   Object.entries(cssMap).forEach(([selector, properties]) => {
     try {
       let matches = false;
-      let isPseudoElement = false;
 
-      // Check if selector contains pseudo-elements (::before, ::after, etc.)
-      if (selector.includes('::')) {
-        isPseudoElement = true;
-        // Extract base selector (without pseudo-element)
-        const baseSelector = selector.split('::')[0].trim();
+      // --- Pseudo-selector detection (handles both :: and : for pseudo-elements) ---
+      const pseudoParsed = parsePseudoFromSelector(selector);
 
-        // Check if base selector matches the element
-        try {
-          matches = element.matches(baseSelector);
-          if (matches) {
-            // Store this selector for custom CSS
-            unmatchedSelectors.push({ selector, properties });
+      if (pseudoParsed.pseudo) {
+        const { baseSelector, pseudo, pseudoRaw, pseudoType } = pseudoParsed;
+
+        // Check if the base selector matches the element
+        matches = elementMatchesBase(baseSelector);
+        if (!matches) return;
+
+        // Parse css properties
+        const propsObject = parseProperties(properties);
+
+        // Map CSS properties to Bricks native pseudo settings
+        const { mapped, unmapped } = mapCssPropertiesToBricksPseudo(propsObject, pseudo);
+
+        // Merge mapped properties into combinedProperties
+        Object.entries(mapped).forEach(([key, value]) => {
+          if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+            if (!combinedProperties[key]) combinedProperties[key] = {};
+            Object.assign(combinedProperties[key], value);
+          } else {
+            combinedProperties[key] = value;
           }
-        } catch (e) {
-          // Fallback for complex base selectors
-          try {
-            const matchingElements = doc.querySelectorAll(baseSelector);
-            matches = Array.from(matchingElements).includes(element);
-            if (matches) {
-              unmatchedSelectors.push({ selector, properties });
-            }
-          } catch (err) {
-            // Skip this selector
-          }
+        });
+
+        // Unmapped properties go to custom CSS
+        if (Object.keys(unmapped).length > 0) {
+          unmatchedSelectors.push({ selector: normalizePseudoSelector(selector), properties: unmapped });
         }
-        return; // Skip further processing for pseudo-elements
+        return;
       }
 
-      // Check if selector contains pseudo-classes (:hover, :focus, etc.)
-      const pseudoClassMatch = selector.match(/:(hover|focus|active|visited|disabled)$/);
-      if (pseudoClassMatch) {
-        const pseudoClass = pseudoClassMatch[1];
-        // Extract base selector (without pseudo-class)
-        const baseSelector = selector.substring(0, selector.lastIndexOf(':'));
-
-        // Check if base selector matches the element
-        try {
-          matches = element.matches(baseSelector);
-          if (matches) {
-            // Process hover/focus/active properties using Bricks pseudo-state format
-            // Convert properties to Bricks format with pseudo-class suffix
-            let hasUnmappedProperties = false;
-            const unmappedProps = {};
-
-            Object.entries(properties).forEach(([prop, val]) => {
-              // Map CSS properties to Bricks properties with pseudo-class suffix
-              if (prop === 'background' || prop === 'background-color') {
-                const propName = `_background:${pseudoClass}`;
-                if (!combinedProperties[propName]) {
-                  combinedProperties[propName] = { color: { raw: val } };
-                } else {
-                  combinedProperties[propName].color = { raw: val };
-                }
-              } else if (prop === 'color') {
-                const propName = `_typography:${pseudoClass}`;
-                if (!combinedProperties[propName]) {
-                  combinedProperties[propName] = { color: { raw: val } };
-                } else {
-                  combinedProperties[propName].color = { raw: val };
-                }
-              } else if (prop === 'border-color') {
-                const propName = `_border:${pseudoClass}`;
-                if (!combinedProperties[propName]) {
-                  combinedProperties[propName] = { color: { raw: val } };
-                } else {
-                  combinedProperties[propName].color = { raw: val };
-                }
-              } else {
-                // Collect unmapped properties
-                hasUnmappedProperties = true;
-                unmappedProps[prop] = val;
-              }
-            });
-
-            // If there are unmapped properties, add them to custom CSS as a group
-            if (hasUnmappedProperties) {
-              unmatchedSelectors.push({ selector, properties: unmappedProps });
-            }
-          }
-        } catch (e) {
-          // Fallback for complex base selectors
-          try {
-            const matchingElements = doc.querySelectorAll(baseSelector);
-            matches = Array.from(matchingElements).includes(element);
-            if (matches) {
-              unmatchedSelectors.push({ selector, properties });
-            }
-          } catch (err) {
-            // If all else fails, add to custom CSS
-            unmatchedSelectors.push({ selector, properties });
-          }
-        }
-        return; // Skip further processing for pseudo-classes
-      }
-
+      // --- Regular selectors (no pseudo) ---
       // Try to match the selector
       try {
         matches = element.matches(selector);
@@ -509,9 +716,6 @@ export function matchCSSSelectors(element, cssMap) {
       if (matches) {
         const parsedProperties = parseProperties(properties);
         Object.assign(combinedProperties, parsedProperties);
-
-        // logger.log(`Element matched by: ${selector}`);
-        // logger.log('Properties:', parsedProperties);
       }
     } catch (error) {
       logger.warn(`Error processing selector: ${selector}`, error);
@@ -629,14 +833,19 @@ export function matchCSSSelectorsPerClass(element, cssMap, classList) {
         return;
       }
 
-      // 3. Handle pseudo-selectors (::before, :hover, etc.)
+      // 3. Handle pseudo-selectors (::before, :before, ::after, :after, :hover, etc.)
       if (isPseudoSelector(selector)) {
-        // Extract base selector (before the pseudo part)
-        const pseudoMatch = selector.match(/^(.+?)(:{1,2}[a-zA-Z-]+(?:\([^)]*\))?)$/);
-        if (pseudoMatch) {
-          const baseSelector = pseudoMatch[1];
+        const pseudoParsed = parsePseudoFromSelector(selector);
+        if (pseudoParsed.pseudo) {
+          const { baseSelector, pseudo } = pseudoParsed;
           if (elementMatches(baseSelector)) {
-            unmatchedSelectors.push({ selector, properties });
+            // Push with normalized selector and parsed properties + pseudo metadata
+            unmatchedSelectors.push({
+              selector: normalizePseudoSelector(selector),
+              properties,
+              pseudo,             // e.g. "::before" or ":hover"
+              baseSelector,       // e.g. ".card"
+            });
           }
         }
         return;
@@ -753,7 +962,8 @@ export function buildCssMap(cssText) {
 
           // Handle multiple selectors separated by comma
           selector.split(',').forEach(sel => {
-            const trimmedSelector = sel.trim();
+            // Normalize legacy pseudo-element selectors (:before → ::before, :after → ::after)
+            const trimmedSelector = normalizePseudoSelector(sel.trim());
             if (trimmedSelector) {
               map[trimmedSelector] = propertiesString;
 

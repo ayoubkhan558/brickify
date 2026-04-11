@@ -85,41 +85,64 @@ const GeneratorComponent = () => {
 
 
 
-  // Handle HTML input changes with automatic stripping and extraction
+  // Handle HTML input changes — pass through directly without auto-correction
+  // to prevent cursor jumping. Correction happens on demand via "Correct" button.
   const handleHtmlChange = useCallback((newHtml) => {
-    const result = stripAndExtract(newHtml);
-    
-    // Set processed HTML
-    setHtml(result.bodyContent);
-    
-    // Reset component-related state when HTML changes
-    setComponentRootIds([]);
-    setComponentManualProperties([]);
-    setActiveComponentRootId(null);
-    
-    // Show warnings if any auto-corrections were made
-    if (result.warnings && result.warnings.length > 0) {
-      setProcessingWarnings(result.warnings);
-      // Auto-clear warnings after 5 seconds
-      setTimeout(() => setProcessingWarnings([]), 5000);
+    setHtml(newHtml);
+  }, [setHtml]);
+
+  // Handle on-demand code correction (strip structural tags, extract styles/scripts, auto-correct errors)
+  const handleCorrectCode = useCallback(() => {
+    if (activeTab === 'html' && html) {
+      const result = stripAndExtract(html);
+
+      // Set processed HTML
+      setHtml(result.bodyContent);
+
+      // Reset component-related state when HTML is corrected
+      setComponentRootIds([]);
+      setComponentManualProperties([]);
+      setActiveComponentRootId(null);
+
+      // Show warnings if any auto-corrections were made
+      if (result.warnings && result.warnings.length > 0) {
+        setProcessingWarnings(result.warnings);
+        setTimeout(() => setProcessingWarnings([]), 5000);
+      }
+
+      // Append extracted CSS to existing CSS if any was found
+      if (result.extractedCss) {
+        setCss(prevCss => {
+          const existingCss = prevCss.trim();
+          return existingCss ? `${existingCss}\n\n/* Extracted from <style> tags */\n${result.extractedCss}` : result.extractedCss;
+        });
+      }
+
+      // Append extracted JS to existing JS if any was found
+      if (result.extractedJs) {
+        setJs(prevJs => {
+          const existingJs = prevJs.trim();
+          return existingJs ? `${existingJs}\n\n// Extracted from <script> tags\n${result.extractedJs}` : result.extractedJs;
+        });
+      }
+    } else if (activeTab === 'css' && css) {
+      // Auto-correct CSS (fix missing braces, semicolons, etc.)
+      let corrected = css;
+      try {
+        // Fix missing closing braces
+        const openBraces = (corrected.match(/{/g) || []).length;
+        const closeBraces = (corrected.match(/}/g) || []).length;
+        if (openBraces > closeBraces) {
+          corrected += '\n' + '}'.repeat(openBraces - closeBraces);
+        }
+        // Fix missing semicolons before closing braces
+        corrected = corrected.replace(/([^;\s])\s*\n\s*}/g, '$1;\n}');
+        setCss(corrected.trim());
+      } catch (e) {
+        // If correction fails, leave as-is
+      }
     }
-    
-    // Append extracted CSS to existing CSS if any was found
-    if (result.extractedCss) {
-      setCss(prevCss => {
-        const existingCss = prevCss.trim();
-        return existingCss ? `${existingCss}\n\n/* Extracted from <style> tags */\n${result.extractedCss}` : result.extractedCss;
-      });
-    }
-    
-    // Append extracted JS to existing JS if any was found
-    if (result.extractedJs) {
-      setJs(prevJs => {
-        const existingJs = prevJs.trim();
-        return existingJs ? `${existingJs}\n\n// Extracted from <script> tags\n${result.extractedJs}` : result.extractedJs;
-      });
-    }
-  }, [setHtml, setCss, setJs, setComponentRootIds, setComponentManualProperties, setActiveComponentRootId]);
+  }, [activeTab, html, css, setHtml, setCss, setJs, setComponentRootIds, setComponentManualProperties, setActiveComponentRootId]);
 
   // Generate Bricks structure from current inputs
   const previewHtml = useMemo(() => {
@@ -252,6 +275,18 @@ const GeneratorComponent = () => {
                     </div>
 
                     <div className="code-editor__actions">
+                      <button
+                        className="code-editor__action"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCorrectCode();
+                        }}
+                        data-tooltip-id="correct-tooltip"
+                        data-tooltip-content="Auto-correct errors, strip structural tags & extract styles/scripts"
+                      >
+                        Correct
+                      </button>
+                      <Tooltip id="correct-tooltip" place="top" effect="solid" />
                       <button
                         className="code-editor__action"
                         onClick={(e) => {
