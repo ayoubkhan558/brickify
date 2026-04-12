@@ -379,9 +379,6 @@ const domNodeToBricks = (node, cssRulesMap = {}, parentId = '0', globalClasses =
   else if (tag === 'svg') {
     processSvgElement(node, element, tag, options.context || {});
     element._skipChildren = true; // SVG children are already included in outerHTML
-    // Early-return BEFORE CSS/attribute processing to prevent viewBox/fill/stroke duplication
-    allElements.push(element);
-    return element;
   }
   else if (tag === 'form') {
     const formElement = processFormElement(node, options.context || {});
