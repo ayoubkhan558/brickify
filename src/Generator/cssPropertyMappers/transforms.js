@@ -17,26 +17,23 @@ export const transformsMappers = {
         case 'translateY':
         case 'translateZ':
         case 'translate3d':
-          // Don't create empty translate object - set translateX/Y/Z directly
           if (func === 'translate') {
-            // FIX: Handle comma-separated values properly
             const argsArray = cleanArgs.split(/[,\s]+/).filter(arg => arg.trim() !== '');
             const [x = '0', y = '0'] = argsArray;
-            settings._transform.translateX = parseValue(x);
-            settings._transform.translateY = parseValue(y);
+            settings._transform.translateX = parseValue(x).toString();
+            settings._transform.translateY = parseValue(y).toString();
           } else if (func === 'translateX') {
-            settings._transform.translateX = parseValue(cleanArgs);
+            settings._transform.translateX = parseValue(cleanArgs).toString();
           } else if (func === 'translateY') {
-            settings._transform.translateY = parseValue(cleanArgs);
+            settings._transform.translateY = parseValue(cleanArgs).toString();
           } else if (func === 'translateZ') {
-            settings._transform.translateZ = parseValue(cleanArgs);
+            settings._transform.translateZ = parseValue(cleanArgs).toString();
           } else if (func === 'translate3d') {
-            // FIX: Handle comma-separated values properly
             const argsArray = cleanArgs.split(/[,\s]+/).filter(arg => arg.trim() !== '');
             const [x = '0', y = '0', z = '0'] = argsArray;
-            settings._transform.translateX = parseValue(x);
-            settings._transform.translateY = parseValue(y);
-            settings._transform.translateZ = parseValue(z);
+            settings._transform.translateX = parseValue(x).toString();
+            settings._transform.translateY = parseValue(y).toString();
+            settings._transform.translateZ = parseValue(z).toString();
           }
           break;
 
@@ -45,26 +42,23 @@ export const transformsMappers = {
         case 'scaleY':
         case 'scaleZ':
         case 'scale3d':
-          settings._transform.scale = settings._transform.scale || {};
           if (func === 'scale') {
-            // FIX: Handle comma-separated values properly
             const argsArray = cleanArgs.split(/[,\s]+/).filter(arg => arg.trim() !== '');
             const [x = '1', y = x] = argsArray;
-            settings._transform.scale.x = parseFloat(x);
-            settings._transform.scale.y = parseFloat(y);
+            settings._transform.scaleX = x.toString();
+            settings._transform.scaleY = y.toString();
           } else if (func === 'scaleX') {
-            settings._transform.scale.x = parseFloat(cleanArgs);
+            settings._transform.scaleX = cleanArgs.toString();
           } else if (func === 'scaleY') {
-            settings._transform.scale.y = parseFloat(cleanArgs);
+            settings._transform.scaleY = cleanArgs.toString();
           } else if (func === 'scaleZ') {
-            settings._transform.scale.z = parseFloat(cleanArgs);
+            settings._transform.scaleZ = cleanArgs.toString();
           } else if (func === 'scale3d') {
-            // FIX: Handle comma-separated values properly
             const argsArray = cleanArgs.split(/[,\s]+/).filter(arg => arg.trim() !== '');
             const [x = '1', y = '1', z = '1'] = argsArray;
-            settings._transform.scale.x = parseFloat(x);
-            settings._transform.scale.y = parseFloat(y);
-            settings._transform.scale.z = parseFloat(z);
+            settings._transform.scale3dX = x.toString();
+            settings._transform.scale3dY = y.toString();
+            settings._transform.scale3dZ = z.toString();
           }
           break;
 
@@ -73,45 +67,41 @@ export const transformsMappers = {
         case 'rotateY':
         case 'rotateZ':
         case 'rotate3d':
-          settings._transform.rotate = settings._transform.rotate || {};
           if (func === 'rotate') {
-            settings._transform.rotate.z = cleanArgs;
+            settings._transform.rotateZ = cleanArgs;
           } else if (func === 'rotateX') {
-            settings._transform.rotate.x = cleanArgs;
+            settings._transform.rotateX = cleanArgs;
           } else if (func === 'rotateY') {
-            settings._transform.rotate.y = cleanArgs;
+            settings._transform.rotateY = cleanArgs;
           } else if (func === 'rotateZ') {
-            settings._transform.rotate.z = cleanArgs;
+            settings._transform.rotateZ = cleanArgs;
           } else if (func === 'rotate3d') {
-            // FIX: Handle comma-separated values properly
             const argsArray = cleanArgs.split(/[,\s]+/).filter(arg => arg.trim() !== '');
             const [x = '0', y = '0', z = '0', angle = '0'] = argsArray;
-            settings._transform.rotate.x = x;
-            settings._transform.rotate.y = y;
-            settings._transform.rotate.z = z;
-            settings._transform.rotate.angle = angle;
+            settings._transform.rotate3dX = x;
+            settings._transform.rotate3dY = y;
+            settings._transform.rotate3dZ = z;
+            settings._transform.rotate3dAngle = angle;
           }
           break;
 
         case 'skew':
         case 'skewX':
         case 'skewY':
-          settings._transform.skew = settings._transform.skew || {};
           if (func === 'skew') {
-            // FIX: Handle comma-separated values properly
             const argsArray = cleanArgs.split(/[,\s]+/).filter(arg => arg.trim() !== '');
             const [x = '0deg', y = '0deg'] = argsArray;
-            settings._transform.skew.x = x;
-            settings._transform.skew.y = y;
+            settings._transform.skewX = x;
+            settings._transform.skewY = y;
           } else if (func === 'skewX') {
-            settings._transform.skew.x = cleanArgs;
+            settings._transform.skewX = cleanArgs;
           } else if (func === 'skewY') {
-            settings._transform.skew.y = cleanArgs;
+            settings._transform.skewY = cleanArgs;
           }
           break;
 
         case 'perspective':
-          settings._transform.perspective = parseValue(cleanArgs);
+          settings._transform.perspective = cleanArgs;
           break;
 
         case 'matrix':
@@ -120,21 +110,22 @@ export const transformsMappers = {
           break;
       }
     });
+
+    // Clean up any empty object
+    if (Object.keys(settings._transform).length === 0) {
+      delete settings._transform;
+    }
   },
   'transform-origin': (val, settings) => {
-    settings._transform = settings._transform || {};
-    settings._transform.origin = val;
+    settings._transformOrigin = val;
   },
   'transform-style': (val, settings) => {
-    settings._transform = settings._transform || {};
-    settings._transform.style = val;
+    settings._transformStyle = val;
   },
   'perspective-origin': (val, settings) => {
-    settings._transform = settings._transform || {};
-    settings._transform.perspectiveOrigin = val;
+    settings._perspectiveOrigin = val;
   },
   'backface-visibility': (val, settings) => {
-    settings._transform = settings._transform || {};
-    settings._transform.backfaceVisibility = val;
+    settings._backfaceVisibility = val;
   }
 };
