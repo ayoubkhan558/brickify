@@ -69,6 +69,8 @@ export const processAttributes = (node, element, tag, options = {}) => {
   };
 
   // Process other attributes
+  if (tag === 'svg') return;
+
   Array.from(node.attributes).forEach(attr => {
     const attrName = attr.name.toLowerCase();
     if (attrName === 'style') return; // Skip style as it's already processed above

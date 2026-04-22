@@ -1,10 +1,10 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 
 import { RiJavascriptLine, RiHtml5Line } from "react-icons/ri";
 import { FaCss3, FaCode, FaCopy, FaPlay, FaCheck, FaDownload, FaChevronDown, FaPaperPlane, FaSpinner } from "react-icons/fa6";
 import { MdOutlineSettings } from "react-icons/md";
-import { FaInfoCircle, FaCog, FaQuestionCircle, FaExclamationTriangle, FaCommentDots, FaGithub, FaEnvelope, FaWhatsapp } from "react-icons/fa";
+import { FaInfoCircle, FaCog, FaQuestionCircle, FaCommentDots, FaGithub, FaEnvelope, FaWhatsapp } from "react-icons/fa";
 import { VscCopy } from "react-icons/vsc";
 import Header from '@components/Header/index';
 import AboutModal from '@components/AboutModal/index';
@@ -75,7 +75,11 @@ const GeneratorComponent = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [rightPanelView, setRightPanelView] = useState('layers'); // 'layers' or 'json'
   const [isAIPromptOpen, setIsAIPromptOpen] = useState(false);
-  const [processingWarnings, setProcessingWarnings] = useState([]);
+
+
+  // Internal component data (rawContent, idMappings) kept separate from the
+  // serialised output so they never leak into the clipboard / exported JSON.
+  const componentInternals = useRef({ rawContent: null, idMappings: null });
 
   // Custom hooks
   const formatting = useCodeFormatting();
@@ -91,58 +95,43 @@ const GeneratorComponent = () => {
     setHtml(newHtml);
   }, [setHtml]);
 
-  // Handle on-demand code correction (strip structural tags, extract styles/scripts, auto-correct errors)
+  // Handle on-demand HTML correction:
+  // – strips <html>, <head> (and all tags within it), <body> wrapper tags
+  // – moves <style> content to the CSS tab
+  // – moves inline <script> content to the JS tab
   const handleCorrectCode = useCallback(() => {
     if (activeTab === 'html' && html) {
       const result = stripAndExtract(html);
 
-      // Set processed HTML
+      // Update HTML with structural tags removed
       setHtml(result.bodyContent);
 
-      // Reset component-related state when HTML is corrected
+      // Reset component-related state
       setComponentRootIds([]);
       setComponentManualProperties([]);
       setActiveComponentRootId(null);
 
-      // Show warnings if any auto-corrections were made
-      if (result.warnings && result.warnings.length > 0) {
-        setProcessingWarnings(result.warnings);
-        setTimeout(() => setProcessingWarnings([]), 5000);
-      }
-
-      // Append extracted CSS to existing CSS if any was found
+      // Append extracted CSS to the style tab
       if (result.extractedCss) {
         setCss(prevCss => {
           const existingCss = prevCss.trim();
-          return existingCss ? `${existingCss}\n\n/* Extracted from <style> tags */\n${result.extractedCss}` : result.extractedCss;
+          return existingCss
+            ? `${existingCss}\n\n/* Extracted from <style> tags */\n${result.extractedCss}`
+            : result.extractedCss;
         });
       }
 
-      // Append extracted JS to existing JS if any was found
+      // Append extracted JS to the JS tab
       if (result.extractedJs) {
         setJs(prevJs => {
           const existingJs = prevJs.trim();
-          return existingJs ? `${existingJs}\n\n// Extracted from <script> tags\n${result.extractedJs}` : result.extractedJs;
+          return existingJs
+            ? `${existingJs}\n\n// Extracted from <script> tags\n${result.extractedJs}`
+            : result.extractedJs;
         });
       }
-    } else if (activeTab === 'css' && css) {
-      // Auto-correct CSS (fix missing braces, semicolons, etc.)
-      let corrected = css;
-      try {
-        // Fix missing closing braces
-        const openBraces = (corrected.match(/{/g) || []).length;
-        const closeBraces = (corrected.match(/}/g) || []).length;
-        if (openBraces > closeBraces) {
-          corrected += '\n' + '}'.repeat(openBraces - closeBraces);
-        }
-        // Fix missing semicolons before closing braces
-        corrected = corrected.replace(/([^;\s])\s*\n\s*}/g, '$1;\n}');
-        setCss(corrected.trim());
-      } catch (e) {
-        // If correction fails, leave as-is
-      }
     }
-  }, [activeTab, html, css, setHtml, setCss, setJs, setComponentRootIds, setComponentManualProperties, setActiveComponentRootId]);
+  }, [activeTab, html, setHtml, setCss, setJs, setComponentRootIds, setComponentManualProperties, setActiveComponentRootId]);
 
   // Generate Bricks structure from current inputs
   const previewHtml = useMemo(() => {
@@ -208,9 +197,20 @@ const GeneratorComponent = () => {
             componentRootIds,
           }
         });
+
+        // Separate internal fields from the clean Bricks output
+        componentInternals.current = {
+          rawContent: result.rawContent || null,
+          idMappings: result.idMappings || null,
+        };
+        // Remove internal-only fields so the JSON output is clean Bricks format
+        const cleanResult = { ...result };
+        delete cleanResult.rawContent;
+        delete cleanResult.idMappings;
+
         const json = isMinified
-          ? JSON.stringify(result)
-          : JSON.stringify(result, null, 2);
+          ? JSON.stringify(cleanResult)
+          : JSON.stringify(cleanResult, null, 2);
         setOutput(json);
       } else {
         setOutput('');
@@ -328,28 +328,7 @@ const GeneratorComponent = () => {
                     </div>
                   </div>
 
-                  {/* Auto-Correction Warnings */}
-                  {processingWarnings.length > 0 && (
-                    <div className="processing-warnings" style={{
-                      padding: '12px 16px',
-                      background: 'rgba(255, 193, 7, 0.1)',
-                      borderLeft: '3px solid #ffc107',
-                      margin: '8px 0',
-                      borderRadius: '4px'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                        <FaExclamationTriangle size={16} style={{ color: '#ffc107', marginTop: '2px', flexShrink: 0 }} />
-                        <div style={{ flex: 1 }}>
-                          <strong style={{ color: '#ffc107', display: 'block', marginBottom: '4px' }}>Auto-Corrected Issues:</strong>
-                          <ul style={{ margin: 0, paddingLeft: '20px', color: 'var(--color-text-2)', fontSize: '13px' }}>
-                            {processingWarnings.map((warning, index) => (
-                              <li key={index}>{warning}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+
 
                   {/* Quick Action Tags - Show when code exists */}
                   <QuickActionTags
@@ -424,9 +403,9 @@ const GeneratorComponent = () => {
                       // Layers View
                       output ? (() => {
                         const parsed = JSON.parse(output);
-                        // In component mode, use rawContent to show the original tree for selections
-                        const layerData = componentMode && parsed.rawContent
-                          ? parsed.rawContent
+                        // In component mode, use rawContent (from ref) to show the original tree for selections
+                        const layerData = componentMode && componentInternals.current.rawContent
+                          ? componentInternals.current.rawContent
                           : parsed.content;
                         const componentProperties = componentMode && parsed.components?.length > 0
                           ? parsed.components[0].properties
@@ -485,7 +464,7 @@ const GeneratorComponent = () => {
 
               {/* Bottom: Component Mode Settings */}
               <Panel defaultSize={30} minSize={20} maxSize={60} className="panel-component-mode">
-                <ComponentMode output={output} />
+                <ComponentMode output={output} componentInternals={componentInternals} />
               </Panel>
             </PanelGroup>
           </Panel>

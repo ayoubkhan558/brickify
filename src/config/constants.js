@@ -4,7 +4,7 @@
  */
 
 // Last update date
-export const LAST_UPDATE_DATE = '10 April, 2026';
+export const LAST_UPDATE_DATE = '22 April, 2026';
 
 // Bricks Builder version this tool targets
 export const BRICKS_VERSION = '2.3.2';
