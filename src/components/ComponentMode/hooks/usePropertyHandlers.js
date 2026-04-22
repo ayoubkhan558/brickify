@@ -8,25 +8,19 @@ import { useCallback } from 'react';
 export const usePropertyHandlers = ({
   activeDetectedProperties,
   activeComponentRootId,
-  output,
   componentManualProperties,
   setComponentManualProperties,
   setComponentAutoDetect,
   elementToRootId,
+  componentInternals,
 }) => {
   /**
    * Convert auto-detected properties to manual properties when switching to manual mode
    */
   const handleSwitchToManual = useCallback(() => {
     if (activeDetectedProperties.length > 0 && activeComponentRootId) {
-      // Get the ID mappings from the output
-      let idMappings = {};
-      try {
-        const parsed = JSON.parse(output);
-        idMappings = parsed.idMappings || {};
-      } catch {
-        // If parsing fails, proceed without mapping
-      }
+      // Get the ID mappings from the internal ref (no longer in the JSON output)
+      const idMappings = componentInternals?.current?.idMappings || {};
 
       // Convert property connections to manual properties
       const convertPropertyToManual = (prop) => {
@@ -75,7 +69,7 @@ export const usePropertyHandlers = ({
   }, [
     activeDetectedProperties,
     activeComponentRootId,
-    output,
+    componentInternals,
     setComponentManualProperties,
     setComponentAutoDetect,
   ]);

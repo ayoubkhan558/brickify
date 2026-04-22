@@ -31,8 +31,8 @@ export const processListElement = (node, element, tag, context = {}) => {
 
   if (['ul', 'ol'].includes(tag)) {
     if (isSimpleList) {
-      // Simple lists - render as rich text (including nested lists)
-      element.name = 'text';
+      // Simple lists without formatting tags - use text-basic
+      element.name = 'text-basic';
       element.label = getElementLabel(node, tag.toUpperCase() + ' List', context);
       element.settings.tag = tag;
       element.settings.text = node.innerHTML;

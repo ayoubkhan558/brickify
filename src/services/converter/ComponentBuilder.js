@@ -127,10 +127,14 @@ export class ComponentBuilder {
 
             // 6. Replace the subtree in currentContent with a lightweight instance element
             const instanceId = generateComponentId();
+            // Bricks expects integer 0 for the root parent, not string '0'
+            const instanceParent = (rootElement.parent === '0' || rootElement.parent === 0)
+                ? 0
+                : rootElement.parent;
             const instanceElement = {
                 id:       instanceId,
                 name:     rootElement.name,
-                parent:   rootElement.parent,
+                parent:   instanceParent,
                 children: [],
                 settings: {},
                 label:    rootElement.label || this.formatLabel(rootElement.name),
@@ -156,8 +160,8 @@ export class ComponentBuilder {
             version:       BRICKS_VERSION,
             components:    allComponentDefs,
             globalClasses: globalClasses || [],
-            globalElements: globalElements || [],
-            idMappings:    this.allIdMappings || {}, // Include ID mappings for conversion
+            // Internal fields used by the UI (stripped before clipboard copy)
+            idMappings:    this.allIdMappings || {},
         };
     }
 
@@ -195,6 +199,7 @@ export class ComponentBuilder {
 
             if (el.cid)            result.cid            = el.cid;
             if (el._skipTextNodes) result._skipTextNodes  = el._skipTextNodes;
+            if (el._skipChildren)  result._skipChildren   = el._skipChildren;
 
             return result;
         });

@@ -13,6 +13,10 @@ export const processSvgElement = (node, element, tag = 'svg', context = {}) => {
   element.label = getElementLabel(node, 'SVG', context);
   element.settings.source = 'code';
   element.settings.code = node.outerHTML;
+  // Bricks requires these metadata fields for code-based elements
+  element.settings.signature = crypto.randomUUID().replace(/-/g, '').substring(0, 32);
+  element.settings.user_id = 1;
+  element.settings.time = Math.floor(Date.now() / 1000);
 
   return element;
 };

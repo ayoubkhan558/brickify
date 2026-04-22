@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 
 import { RiJavascriptLine, RiHtml5Line } from "react-icons/ri";
@@ -76,6 +76,10 @@ const GeneratorComponent = () => {
   const [rightPanelView, setRightPanelView] = useState('layers'); // 'layers' or 'json'
   const [isAIPromptOpen, setIsAIPromptOpen] = useState(false);
   const [processingWarnings, setProcessingWarnings] = useState([]);
+
+  // Internal component data (rawContent, idMappings) kept separate from the
+  // serialised output so they never leak into the clipboard / exported JSON.
+  const componentInternals = useRef({ rawContent: null, idMappings: null });
 
   // Custom hooks
   const formatting = useCodeFormatting();
@@ -208,9 +212,20 @@ const GeneratorComponent = () => {
             componentRootIds,
           }
         });
+
+        // Separate internal fields from the clean Bricks output
+        componentInternals.current = {
+          rawContent: result.rawContent || null,
+          idMappings: result.idMappings || null,
+        };
+        // Remove internal-only fields so the JSON output is clean Bricks format
+        const cleanResult = { ...result };
+        delete cleanResult.rawContent;
+        delete cleanResult.idMappings;
+
         const json = isMinified
-          ? JSON.stringify(result)
-          : JSON.stringify(result, null, 2);
+          ? JSON.stringify(cleanResult)
+          : JSON.stringify(cleanResult, null, 2);
         setOutput(json);
       } else {
         setOutput('');
@@ -424,9 +439,9 @@ const GeneratorComponent = () => {
                       // Layers View
                       output ? (() => {
                         const parsed = JSON.parse(output);
-                        // In component mode, use rawContent to show the original tree for selections
-                        const layerData = componentMode && parsed.rawContent
-                          ? parsed.rawContent
+                        // In component mode, use rawContent (from ref) to show the original tree for selections
+                        const layerData = componentMode && componentInternals.current.rawContent
+                          ? componentInternals.current.rawContent
                           : parsed.content;
                         const componentProperties = componentMode && parsed.components?.length > 0
                           ? parsed.components[0].properties
@@ -485,7 +500,7 @@ const GeneratorComponent = () => {
 
               {/* Bottom: Component Mode Settings */}
               <Panel defaultSize={30} minSize={20} maxSize={60} className="panel-component-mode">
-                <ComponentMode output={output} />
+                <ComponentMode output={output} componentInternals={componentInternals} />
               </Panel>
             </PanelGroup>
           </Panel>

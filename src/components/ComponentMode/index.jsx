@@ -11,7 +11,7 @@ import {
 } from './hooks';
 import './ComponentMode.scss';
 
-const ComponentMode = ({ output }) => {
+const ComponentMode = ({ output, componentInternals }) => {
   const {
     componentMode,
     setComponentMode,
@@ -76,11 +76,11 @@ const ComponentMode = ({ output }) => {
   } = usePropertyHandlers({
     activeDetectedProperties,
     activeComponentRootId,
-    output,
     componentManualProperties,
     setComponentManualProperties,
     setComponentAutoDetect,
     elementToRootId,
+    componentInternals,
   });
   
   const handleMetaChange = (field, value) => {
