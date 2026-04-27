@@ -45,7 +45,6 @@ export const processListElement = (node, element, tag, context = {}) => {
       element.label = getElementLabel(node, tag.toUpperCase() + ' List', context);
       element.settings.tag = tag;
       element.settings.items = [];
-      element.settings.style = 'list-style-position: inside;';
     }
     element.label = tag === 'ul' ? 'Unordered List' : 'Ordered List';
   } else if (tag === 'li') {

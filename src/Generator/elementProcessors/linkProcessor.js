@@ -10,26 +10,35 @@ import { getLinkSettings } from '@generator/elementProcessors/linkUtils';
  * @returns {Object} The processed element
  */
 export const processLinkElement = (node, element, tag = 'a', context = {}) => {
-  element.name = 'text-link';
-  element.label = getElementLabel(node, 'Link', context);
+  const hasElementChildren = Array.from(node.children).length > 0;
 
-  // Handle href attribute and link settings
-  if (node.hasAttribute('href')) {
-    element.settings.link = getLinkSettings(node);
-  }
-
-  // Handle text content directly
-  const textContent = node.textContent.trim();
-  if (textContent) {
-    element.settings.text = textContent;
+  if (hasElementChildren) {
+    element.name = 'div';
     element.settings.tag = 'a';
+    element.label = getElementLabel(node, 'Link Block', context);
+
+    if (node.hasAttribute('href')) {
+      element.settings.link = getLinkSettings(node);
+    }
   } else {
-    element.settings.text = 'Link';
-    element.settings.tag = 'a';
-  }
+    element.name = 'text-link';
+    element.label = getElementLabel(node, 'Link', context);
 
-  // Prevent processing of child text nodes
-  element._skipTextNodes = true;
+    if (node.hasAttribute('href')) {
+      element.settings.link = getLinkSettings(node);
+    }
+
+    const textContent = node.textContent.trim();
+    if (textContent) {
+      element.settings.text = textContent;
+      element.settings.tag = 'a';
+    } else {
+      element.settings.text = 'Link';
+      element.settings.tag = 'a';
+    }
+
+    element._skipTextNodes = true;
+  }
 
   return element;
 };
