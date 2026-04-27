@@ -1,35 +1,26 @@
-import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 
-import { RiJavascriptLine, RiHtml5Line } from "react-icons/ri";
-import { FaCss3, FaCode, FaCopy, FaPlay, FaCheck, FaDownload, FaChevronDown, FaPaperPlane, FaSpinner } from "react-icons/fa6";
-import { MdOutlineSettings } from "react-icons/md";
-import { FaInfoCircle, FaCog, FaQuestionCircle, FaCommentDots, FaGithub, FaEnvelope, FaWhatsapp } from "react-icons/fa";
-import { VscCopy } from "react-icons/vsc";
+import { FaCss3, FaCode, FaCopy, FaPlay, FaCheck, FaDownload, FaChevronDown, FaPaperPlane, FaSpinner } from 'react-icons/fa6';
+import { MdOutlineSettings } from 'react-icons/md';
+import { FaInfoCircle, FaCog, FaQuestionCircle, FaCommentDots, FaGithub, FaEnvelope, FaWhatsapp } from 'react-icons/fa';
+import { VscCopy } from 'react-icons/vsc';
+
 import Header from '@components/Header/index';
 import AboutModal from '@components/AboutModal/index';
 import TutorialModal from '@components/TutorialModal/index';
 import LimitationsModal from '@components/LimitationsModal/index';
 import InfoPanel from '@components/InfoPanel/index';
 import AISettings from '@components/AISettings/index';
-import Tooltip from '@components/Tooltip';
-import ComponentMode from '@components/ComponentMode';
-import logger from '@lib/logger';
+import AIPromptModal from '@components/AIPromptModal';
 
 import { useGenerator } from '@contexts/GeneratorContext';
-import { createBricksStructure } from '../utils/bricksGenerator';
-import { stripAndExtract } from '../utils/htmlInputProcessor';
 import Preview from './Preview';
-import CodeEditor from '@generator/CodeEditor';
-import StructureView from './StructureView';
+import CodeEditorPanel from './CodeEditorPanel';
+import RightPanel from './RightPanel';
 import './GeneratorComponent.scss';
-import aiModels from '@config/aiModels.json';
-import { TemplateSelector } from '@components/AITemplates';
-import AIPromptModal from '@components/AIPromptModal';
-import { QuickActionTags } from '@components/QuickActionTags';
 
-// Custom hooks
-import { useAIGeneration, useCodeFormatting, useClipboard, useAITemplates } from './hooks';
+import { useAIGeneration, useCodeFormatting, useClipboard, useAITemplates, useHtmlCorrect, useBricksOutput } from './hooks';
 
 const GeneratorComponent = () => {
   const {
@@ -73,162 +64,66 @@ const GeneratorComponent = () => {
   const [isTutorialOpen, setIsTutorialOpen] = useState(false);
   const [isLimitationsOpen, setIsLimitationsOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [rightPanelView, setRightPanelView] = useState('layers'); // 'layers' or 'json'
+  const [rightPanelView, setRightPanelView] = useState('layers');
   const [isAIPromptOpen, setIsAIPromptOpen] = useState(false);
 
-
-  // Internal component data (rawContent, idMappings) kept separate from the
-  // serialised output so they never leak into the clipboard / exported JSON.
-  const componentInternals = useRef({ rawContent: null, idMappings: null });
-
-  // Custom hooks
-  const formatting = useCodeFormatting();
-  const clipboard = useClipboard();
+  // ── Custom hooks ────────────────────────────────────────────────────────────
+  const formatting  = useCodeFormatting();
+  const clipboard   = useClipboard();
   const aiTemplates = useAITemplates();
   const aiGeneration = useAIGeneration(activeTab, html, css, js, setHtml, setCss, setJs, aiTemplates);
 
+  // HTML correct (strip structural tags, move style/script to tabs)
+  const { handleHtmlChange, handleCorrectCode } = useHtmlCorrect({
+    activeTab,
+    html,
+    setHtml,
+    setCss,
+    setJs,
+    setComponentRootIds,
+    setComponentManualProperties,
+    setActiveComponentRootId,
+  });
 
+  // Bricks JSON output generation (runs on every code/settings change)
+  const { componentInternals } = useBricksOutput({
+    html, css, js,
+    activeTab, includeJs,
+    inlineStyleHandling, isMinified,
+    showNodeClass, mergeNonClassSelectors,
+    componentMode, componentAutoDetect,
+    componentMeta, componentManualProperties, componentRootIds,
+    setOutput,
+  });
 
-  // Handle HTML input changes — pass through directly without auto-correction
-  // to prevent cursor jumping. Correction happens on demand via "Correct" button.
-  const handleHtmlChange = useCallback((newHtml) => {
-    setHtml(newHtml);
-  }, [setHtml]);
-
-  // Handle on-demand HTML correction:
-  // – strips <html>, <head> (and all tags within it), <body> wrapper tags
-  // – moves <style> content to the CSS tab
-  // – moves inline <script> content to the JS tab
-  const handleCorrectCode = useCallback(() => {
-    if (activeTab === 'html' && html) {
-      const result = stripAndExtract(html);
-
-      // Update HTML with structural tags removed
-      setHtml(result.bodyContent);
-
-      // Reset component-related state
-      setComponentRootIds([]);
-      setComponentManualProperties([]);
-      setActiveComponentRootId(null);
-
-      // Append extracted CSS to the style tab
-      if (result.extractedCss) {
-        setCss(prevCss => {
-          const existingCss = prevCss.trim();
-          return existingCss
-            ? `${existingCss}\n\n/* Extracted from <style> tags */\n${result.extractedCss}`
-            : result.extractedCss;
-        });
-      }
-
-      // Append extracted JS to the JS tab
-      if (result.extractedJs) {
-        setJs(prevJs => {
-          const existingJs = prevJs.trim();
-          return existingJs
-            ? `${existingJs}\n\n// Extracted from <script> tags\n${result.extractedJs}`
-            : result.extractedJs;
-        });
-      }
-    }
-  }, [activeTab, html, setHtml, setCss, setJs, setComponentRootIds, setComponentManualProperties, setActiveComponentRootId]);
-
-  // Generate Bricks structure from current inputs
-  const previewHtml = useMemo(() => {
-    try {
-      const doc = new DOMParser().parseFromString(html, 'text/html');
-      return doc.body.innerHTML || '';
-    } catch (e) {
-      return html;
-    }
-  }, [html]);
-
+  // ── Theme ────────────────────────────────────────────────────────────────────
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'dark');
     localStorage.setItem('theme', 'dark');
   }, []);
 
-  // Close dropdown when clicking outside
+  // ── Close dropdown on outside click ─────────────────────────────────────────
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (isDropdownOpen && !event.target.closest('.split-dropdown')) {
         setIsDropdownOpen(false);
       }
     };
-
     document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isDropdownOpen]);
 
-  // Handle quick action click - automatically trigger AI generation with template
-  const handleQuickAction = async (templateId) => {
-    // Find the template
+  // ── Quick AI action ──────────────────────────────────────────────────────────
+  const handleQuickAction = useCallback(async (templateId) => {
     const template = aiTemplates.templates.find(t => t.id === templateId);
     if (!template) return;
-
-    // Set a descriptive prompt based on the template and trigger AI generation
     aiGeneration.setQuickPrompt(`Apply ${template.name} to the existing code`);
-
-    // Small delay to ensure prompt is set before triggering
-    setTimeout(() => {
-      aiGeneration.handleQuickGenerate();
-    }, 50);
-  };
-
-
-  useEffect(() => {
-    try {
-      if (html.trim()) {
-        const includeJs = activeTab === 'js';
-        // logger.log('Creating bricks structure with context:', { showNodeClass, inlineStyleHandling });
-        const result = createBricksStructure(html, css, includeJs ? js : '', {
-          context: {
-            showNodeClass,
-            inlineStyleHandling,
-            mergeNonClassSelectors,
-            // Component mode options
-            componentMode,
-            componentAutoDetect,
-            componentCategory: componentMeta.category,
-            componentDescription: componentMeta.description,
-            componentManualProperties: !componentAutoDetect ? componentManualProperties : [],
-            componentRootIds,
-          }
-        });
-
-        // Separate internal fields from the clean Bricks output
-        componentInternals.current = {
-          rawContent: result.rawContent || null,
-          idMappings: result.idMappings || null,
-        };
-        // Remove internal-only fields so the JSON output is clean Bricks format
-        const cleanResult = { ...result };
-        delete cleanResult.rawContent;
-        delete cleanResult.idMappings;
-
-        const json = isMinified
-          ? JSON.stringify(cleanResult)
-          : JSON.stringify(cleanResult, null, 2);
-        setOutput(json);
-      } else {
-        setOutput('');
-      }
-    } catch (err) {
-      logger.error('Failed to generate Bricks structure', {
-        file: 'GeneratorComponent.jsx',
-        step: 'useEffect - createBricksStructure',
-        feature: 'HTML to Bricks Conversion'
-      }, err);
-      // Optionally, you can set an error state here to show in the UI
-    }
-  }, [html, css, js, includeJs, inlineStyleHandling, isMinified, showNodeClass, mergeNonClassSelectors,
-      componentMode, componentAutoDetect, componentMeta, componentManualProperties, componentRootIds]);
+    setTimeout(() => { aiGeneration.handleQuickGenerate(); }, 50);
+  }, [aiTemplates.templates, aiGeneration]);
 
   return (
     <div className="generator">
-      {/* Header */}
+      {/* ── Header ── */}
       <Header
         inlineStyleHandling={inlineStyleHandling}
         setInlineStyleHandling={setInlineStyleHandling}
@@ -242,119 +137,40 @@ const GeneratorComponent = () => {
       />
 
       <main className="app-main">
-        {/* Resizable Panel Layout */}
         <PanelGroup direction="horizontal" className="panel-group">
-          {/* Left Panel - Code Editors */}
+          {/* ── Left: Code Editor ── */}
           <Panel defaultSize={33} minSize={20} className="panel-left" style={{ borderRight: '2px solid var(--color-border)' }}>
             <PanelGroup direction="vertical">
               <Panel defaultSize={70} minSize={30} className="panel-code-editor">
-                <div className="code-editor">
-                  <div className="code-editor__header">
-                    <div className="code-editor__tabs">
-                      <button
-                        className={`code-editor__tab ${activeTab === 'html' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('html')}
-                      >
-                        <RiHtml5Line size={16} style={{ marginRight: 6 }} />
-                        HTML
-                      </button>
-                      <button
-                        className={`code-editor__tab ${activeTab === 'css' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('css')}
-                      >
-                        <FaCss3 size={16} style={{ marginRight: 6 }} />
-                        CSS
-                      </button>
-                      <button
-                        className={`code-editor__tab ${activeTab === 'js' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('js')}
-                      >
-                        <RiJavascriptLine size={16} style={{ marginRight: 6 }} />
-                        JS
-                      </button>
-                    </div>
-
-                    <div className="code-editor__actions">
-                      <button
-                        className="code-editor__action"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleCorrectCode();
-                        }}
-                        data-tooltip-id="correct-tooltip"
-                        data-tooltip-content="Auto-correct errors, strip structural tags & extract styles/scripts"
-                      >
-                        Correct
-                      </button>
-                      <Tooltip id="correct-tooltip" place="top" effect="solid" />
-                      <button
-                        className="code-editor__action"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          formatting.formatCurrent(activeTab, html, css, js, setHtml, setCss, setJs);
-                        }}
-                        data-tooltip-id="format-tooltip"
-                        data-tooltip-content="Auto Format & indent code"
-                      >
-                        Format
-                      </button>
-                      <Tooltip id="format-tooltip" place="top" effect="solid" />
-                    </div>
-                  </div>
-                  <div className="code-editor__content">
-                    <div className="code-editor__pane active">
-                      <CodeEditor
-                        value={activeTab === 'html' ? html : activeTab === 'css' ? css : js}
-                        onChange={activeTab === 'html' ? handleHtmlChange : activeTab === 'css' ? setCss : setJs}
-                        language={activeTab}
-                        placeholder={
-                          activeTab === 'html'
-                            ?
-                            `<!-- Your HTML here… -->
-                            
-<section>
-  <h1>My First Heading</h1>
-  <p>My first paragraph.</p>
-</section>
-                            `
-                            : activeTab === 'css'
-                              ? '/* Your CSS here… */'
-                              : '// Your JavaScript here…'
-                        }
-                        height="100%"
-                        className="code-editor__content"
-                        onCursorTagIndexChange={setActiveTagIndex}
-                      />
-                    </div>
-                  </div>
-
-
-
-                  {/* Quick Action Tags - Show when code exists */}
-                  <QuickActionTags
-                    templates={aiTemplates.templates}
-                    activeTab={activeTab}
-                    hasCode={activeTab === 'html' ? !!html.trim() : activeTab === 'css' ? !!css.trim() : !!js.trim()}
-                    onActionClick={handleQuickAction}
-                    isGenerating={aiGeneration.isQuickGenerating}
-                  />
-
-
-                </div>
+                <CodeEditorPanel
+                  activeTab={activeTab}
+                  setActiveTab={setActiveTab}
+                  html={html}
+                  css={css}
+                  js={js}
+                  handleHtmlChange={handleHtmlChange}
+                  setCss={setCss}
+                  setJs={setJs}
+                  handleCorrectCode={handleCorrectCode}
+                  formatting={formatting}
+                  aiTemplates={aiTemplates}
+                  handleQuickAction={handleQuickAction}
+                  isQuickGenerating={aiGeneration.isQuickGenerating}
+                  setActiveTagIndex={setActiveTagIndex}
+                />
               </Panel>
-
               <PanelResizeHandle className="resize-handle resize-handle--horizontal" />
             </PanelGroup>
           </Panel>
 
           <PanelResizeHandle className="resize-handle resize-handle--vertical" />
 
-          {/* Center Panel - Preview */}
+          {/* ── Centre: Preview ── */}
           <Panel defaultSize={34} minSize={20} className="panel-center" style={{ borderRight: '2px solid var(--color-border)' }}>
             <div className="preview-container">
               <div className="preview-header">
                 <h3>Preview</h3>
-                <div className="preview-actions"></div>
+                <div className="preview-actions" />
               </div>
               <div className="preview-content">
                 {html || css || js ? (
@@ -362,9 +178,9 @@ const GeneratorComponent = () => {
                 ) : (
                   <div className="preview-placeholder">
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9e9e9e" strokeWidth="1.5">
-                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                      <line x1="3" y1="9" x2="21" y2="9"></line>
-                      <line x1="9" y1="21" x2="9" y2="9"></line>
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                      <line x1="3" y1="9" x2="21" y2="9" />
+                      <line x1="9" y1="21" x2="9" y2="9" />
                     </svg>
                     <p>Preview will appear here</p>
                   </div>
@@ -375,103 +191,24 @@ const GeneratorComponent = () => {
 
           <PanelResizeHandle className="resize-handle resize-handle--vertical" />
 
-          {/* Right Panel - Structure/JSON + Component Mode */}
+          {/* ── Right: Layers / JSON + Component Mode ── */}
           <Panel defaultSize={20} minSize={15} maxSize={25} className="panel-right">
-            <PanelGroup direction="vertical">
-              {/* Top: Structure/JSON View */}
-              <Panel defaultSize={70} minSize={30} className="panel-structure">
-                <div className="structure-panel">
-                  <div className="structure-panel__header">
-                    {/* Toggle between Layers and JSON */}
-                    <div className="view-toggle">
-                      <button
-                        className={`view-toggle__btn ${rightPanelView === 'layers' ? 'active' : ''}`}
-                        onClick={() => setRightPanelView('layers')}
-                      >
-                        Layers
-                      </button>
-                      <button
-                        className={`view-toggle__btn ${rightPanelView === 'json' ? 'active' : ''}`}
-                        onClick={() => setRightPanelView('json')}
-                      >
-                        JSON
-                      </button>
-                    </div>
-                  </div>
-                  <div className="structure-panel__content">
-                    {rightPanelView === 'layers' ? (
-                      // Layers View
-                      output ? (() => {
-                        const parsed = JSON.parse(output);
-                        // In component mode, use rawContent (from ref) to show the original tree for selections
-                        const layerData = componentMode && componentInternals.current.rawContent
-                          ? componentInternals.current.rawContent
-                          : parsed.content;
-                        const componentProperties = componentMode && parsed.components?.length > 0
-                          ? parsed.components[0].properties
-                          : [];
-                        return (
-                          <StructureView
-                            data={layerData || []}
-                            globalClasses={parsed.globalClasses || []}
-                            activeIndex={activeTagIndex}
-                            showNodeClass={showNodeClass}
-                            componentProperties={componentProperties}
-                          />
-                        );
-                      })() : (
-                        <div className="structure-placeholder">
-                          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9e9e9e" strokeWidth="1.5">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2-2V8z"></path>
-                            <polyline points="14 2 14 8 20 8"></polyline>
-                            <line x1="16" y1="13" x2="8" y2="13"></line>
-                            <line x1="16" y1="17" x2="8" y2="17"></line>
-                            <polyline points="10 9 9 9 8 9"></polyline>
-                          </svg>
-                          <p style={{ color: 'var(--color-text-2)', fontSize: 13, marginTop: 12 }}>No structure generated</p>
-                        </div>
-                      )
-                    ) : (
-                      // JSON View
-                      output ? (
-                        <div style={{ height: '100%', overflow: 'hidden' }}>
-                          <CodeEditor
-                            value={isMinified ? output : formatting.formatJson(output)}
-                            onChange={() => { }} // Read-only
-                            language="json"
-                            height="100%"
-                            readOnly={true}
-                            lineNumbers="off"
-                            minimap={false}
-                          />
-                        </div>
-                      ) : (
-                        <div className="structure-placeholder">
-                          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9e9e9e" strokeWidth="1.5">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2-2V8z"></path>
-                            <polyline points="14 2 14 8 20 8"></polyline>
-                            <circle cx="12" cy="15" r="3"></circle>
-                          </svg>
-                          <p style={{ color: 'var(--color-text-2)', fontSize: 13, marginTop: 12 }}>No JSON output</p>
-                        </div>
-                      )
-                    )}
-                  </div>
-                </div>
-              </Panel>
-
-              <PanelResizeHandle className="resize-handle resize-handle--horizontal" />
-
-              {/* Bottom: Component Mode Settings */}
-              <Panel defaultSize={30} minSize={20} maxSize={60} className="panel-component-mode">
-                <ComponentMode output={output} componentInternals={componentInternals} />
-              </Panel>
-            </PanelGroup>
+            <RightPanel
+              output={output}
+              componentInternals={componentInternals}
+              componentMode={componentMode}
+              activeTagIndex={activeTagIndex}
+              showNodeClass={showNodeClass}
+              isMinified={isMinified}
+              formatting={formatting}
+              rightPanelView={rightPanelView}
+              setRightPanelView={setRightPanelView}
+            />
           </Panel>
-
         </PanelGroup>
       </main>
-      {/* Info Sidebar */}
+
+      {/* ── Info Sidebar ── */}
       <InfoPanel
         onTutorialOpen={() => setIsTutorialOpen(true)}
         onLimitationsOpen={() => setIsLimitationsOpen(true)}
@@ -482,13 +219,8 @@ const GeneratorComponent = () => {
         isQuickGenerating={aiGeneration.isQuickGenerating}
       />
 
-      {/* AI Components */}
-      <AISettings
-        isOpen={aiGeneration.isAISettingsOpen}
-        onClose={() => aiGeneration.setIsAISettingsOpen(false)}
-      />
-
-      {/* AI Prompt Modal */}
+      {/* ── AI Components ── */}
+      <AISettings isOpen={aiGeneration.isAISettingsOpen} onClose={() => aiGeneration.setIsAISettingsOpen(false)} />
       <AIPromptModal
         isOpen={isAIPromptOpen}
         onClose={() => setIsAIPromptOpen(false)}
@@ -497,19 +229,10 @@ const GeneratorComponent = () => {
         activeTab={activeTab}
       />
 
-      {/* Info Modals */}
-      <AboutModal
-        isOpen={isAboutOpen}
-        onClose={() => setIsAboutOpen(false)}
-      />
-      <TutorialModal
-        isOpen={isTutorialOpen}
-        onClose={() => setIsTutorialOpen(false)}
-      />
-      <LimitationsModal
-        isOpen={isLimitationsOpen}
-        onClose={() => setIsLimitationsOpen(false)}
-      />
+      {/* ── Info Modals ── */}
+      <AboutModal      isOpen={isAboutOpen}       onClose={() => setIsAboutOpen(false)} />
+      <TutorialModal   isOpen={isTutorialOpen}    onClose={() => setIsTutorialOpen(false)} />
+      <LimitationsModal isOpen={isLimitationsOpen} onClose={() => setIsLimitationsOpen(false)} />
     </div>
   );
 };

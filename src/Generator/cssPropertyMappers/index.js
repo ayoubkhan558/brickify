@@ -1,6 +1,7 @@
 // Main export for all property mappers
 import { gridMappers } from './content-grid';
 import { flexboxMappers } from './content-flexbox';
+import { displayMappers } from './display';
 import { spacingMappers } from './layout-spacing';
 import { sizingMappers } from './layout-sizing';
 import { positionMappers } from './layout-position';
@@ -15,6 +16,7 @@ import { filterMappers, effectsMappers, transitionsMappers } from './filters-tra
 export const CSS_PROP_MAPPERS = {
   ...gridMappers,
   ...flexboxMappers,
+  ...displayMappers,
   ...spacingMappers,
   ...sizingMappers,
   ...positionMappers,
