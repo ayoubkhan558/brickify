@@ -1,4 +1,5 @@
 import { parseValue } from '@lib/cssUtils';
+import { appendCustomCss } from '@generator/utils/cssParser';
 
 export const layoutMiscMappers = {
   // Pointer Events
@@ -44,6 +45,18 @@ export const layoutMiscMappers = {
   // Visibility
   'visibility': (val, settings) => {
     settings._visibility = val;
+  },
+
+  // Box Sizing
+  'box-sizing': (val, settings) => {
+    // Usually added in custom CSS or mapped if there's a specific setting
+    // But Bricks doesn't have a direct box-sizing setting, we map it to custom CSS
+    appendCustomCss(settings, settings._cssClass || '%root%', 'box-sizing', val);
+  },
+
+  // Animation
+  'animation': (val, settings) => {
+    appendCustomCss(settings, settings._cssClass || '%root%', 'animation', val);
   }
 };
 

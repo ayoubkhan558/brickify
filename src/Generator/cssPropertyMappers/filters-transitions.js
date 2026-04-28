@@ -1,5 +1,5 @@
-// CSS Filter Property Mappers
 import { parseValue } from '@lib/cssUtils';
+import { appendCustomCss } from '@generator/utils/cssParser';
 
 // Helper to extract numeric value from filter string (e.g. '5px' -> '5')
 const parseFilterNumber = (val) => {
@@ -55,11 +55,7 @@ export const effectsMappers = {
     // Check if drop-shadow is present in the filter string
     if (val.includes('drop-shadow')) {
       // Move all filter values to custom CSS when drop-shadow is provided
-      if (!settings._cssCustom) settings._cssCustom = '';
-      const selector = settings._cssClass || '%element%';
-      // Escape dots in selectors to prevent malformed CSS
-      const escapedSelector = selector.replace(/\./g, '\\.');
-      settings._cssCustom += `\n${escapedSelector.startsWith('%') ? '' : '.'}${escapedSelector} { filter: ${val}; }`;
+      appendCustomCss(settings, settings._cssClass || '%root%', 'filter', val);
       return;
     }
 
@@ -77,8 +73,14 @@ export const effectsMappers = {
         if (mapper) mapper(value, settings);
       }
     });
+  },
+  'backdrop-filter': (val, settings) => {
+    // There is no native Bricks setting for backdrop-filter, so add it to custom CSS
+    appendCustomCss(settings, settings._cssClass || '%root%', 'backdrop-filter', val);
+    appendCustomCss(settings, settings._cssClass || '%root%', '-webkit-backdrop-filter', val);
   }
 };
+
 
 // Transition property mapper
 export const transitionsMappers = {

@@ -3,7 +3,7 @@ import { logger } from '@lib/logger';
 import { sanitizeClassName } from '@lib/helpers';
 import { getElementLabel } from '@lib/bricks';
 import { ALERT_CLASS_PATTERNS, CONTAINER_CLASS_PATTERNS } from '@config/constants';
-import { buildCssMap, parseCssDeclarations, matchCSSSelectors, matchCSSSelectorsPerClass, mapCssPropertiesToBricksPseudo, parsePseudoFromSelector, normalizePseudoSelector } from '@generator/utils/cssParser';
+import { buildCssMap, parseCssDeclarations, matchCSSSelectors, matchCSSSelectorsPerClass, mapCssPropertiesToBricksPseudo, parsePseudoFromSelector, normalizePseudoSelector, appendCustomCss } from '@generator/utils/cssParser';
 import { getBricksFieldType, processFormField, processFormElement } from "@generator/elementProcessors/formProcessor"
 import { processAudioElement } from '@generator/elementProcessors/audioProcessor';
 import { processVideoElement } from '@generator/elementProcessors/videoProcessor';
@@ -120,10 +120,18 @@ const handleInlineStyles = (node, element, globalClasses, variables = {}, option
         }
 
         // Use element ID or tag as selector
-        const selector = element.settings._cssId ? `#${element.settings._cssId}` : `%element%`;
-        // Escape dots in selectors to prevent malformed CSS
-        const escapedSelector = selector.replace(/\./g, '\\.');
-        element.settings._cssCustom += `\n${escapedSelector} {\n  ${formattedStyles};\n}`;
+        const selector = element.settings._cssId ? `#${element.settings._cssId}` : '%root%';
+        
+        styleDeclarations.forEach(s => {
+          const colonIndex = s.indexOf(':');
+          if (colonIndex > -1) {
+            const prop = s.substring(0, colonIndex).trim();
+            const val = s.substring(colonIndex + 1).trim();
+            if (prop && val) {
+              appendCustomCss(element.settings, selector, prop, val);
+            }
+          }
+        });
       }
 
       // Remove the style attribute since we've processed it
@@ -528,7 +536,7 @@ const domNodeToBricks = (node, cssRulesMap = {}, parentId = '0', globalClasses =
   if (cssSelectorTarget === 'id') {
     // Apply styles directly to the element's ID
     if (Object.keys(combinedProperties).length > 0) {
-      const parsedSettings = parseCssDeclarations(combinedProperties, `#brx-${element.id}`, variables);
+      const parsedSettings = parseCssDeclarations(combinedProperties, '%root%', variables);
       Object.assign(element.settings, parsedSettings);
     }
 
@@ -588,7 +596,7 @@ const domNodeToBricks = (node, cssRulesMap = {}, parentId = '0', globalClasses =
       const pseudoMatch = selector.match(new RegExp(`^#${node.id}:(\\w+)`));
       if (pseudoMatch) {
         const pseudoClass = pseudoMatch[1];
-        const pseudoStyles = parseCssDeclarations(cssRulesMap[selector], `#brx-${element.id}`, variables);
+        const pseudoStyles = parseCssDeclarations(cssRulesMap[selector], '%root%', variables);
         Object.entries(pseudoStyles).forEach(([prop, value]) => {
           element.settings[`${prop}:${pseudoClass}`] = value;
         });
@@ -598,7 +606,7 @@ const domNodeToBricks = (node, cssRulesMap = {}, parentId = '0', globalClasses =
       const tagPseudoMatch = selector.match(new RegExp(`^${tag}:(\\w+)`));
       if (tagPseudoMatch) {
         const pseudoClass = tagPseudoMatch[1];
-        const pseudoStyles = parseCssDeclarations(cssRulesMap[selector], tag, variables);
+        const pseudoStyles = parseCssDeclarations(cssRulesMap[selector], '%root%', variables);
         Object.entries(pseudoStyles).forEach(([prop, value]) => {
           element.settings[`${prop}:${pseudoClass}`] = value;
         });

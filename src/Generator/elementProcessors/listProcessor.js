@@ -37,6 +37,7 @@ export const processListElement = (node, element, tag, context = {}) => {
       element.settings.tag = tag;
       element.settings.text = node.innerHTML;
       element.settings.isRichText = true;
+      element._skipChildren = true;
       // Don't return here - let the main function handle the return
     } else {
       // Complex lists - use div structure
