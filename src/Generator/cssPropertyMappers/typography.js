@@ -1,4 +1,5 @@
 import { parseValue, createColorValue } from '@lib/cssUtils';
+import { appendCustomCss } from '@generator/utils/cssParser';
 
 export const typographyMappers = {
   color: (val, settings) => {
@@ -94,14 +95,34 @@ export const typographyMappers = {
     const parts = val.split(' ');
     if (parts.length >= 3) {
       settings._typography = settings._typography || {};
-      settings._typography.textShadow = settings._typography.textShadow || { values: {} };
-      settings._typography.textShadow.values = {
+      settings._typography['text-shadow'] = settings._typography['text-shadow'] || { values: {} };
+      settings._typography['text-shadow'].values = {
         offsetX: parseValue(parts[0]),
         offsetY: parseValue(parts[1]),
-        blur: parseValue(parts[2]),
-        color: parts[3] ? createColorValue(parts[3]) : undefined
-      };
+        blur: parseValue(parts[2])
+      }
+      settings._typography['text-shadow'].color = parts[3] ? createColorValue(parts[3]) : undefined
     }
+  },
+  'font-variant': (val, settings) => {
+    settings._typography = settings._typography || {};
+    settings._typography['font-variation-settings'] = val;
+  },
+  'word-spacing': (val, settings) => {
+    settings._typography = settings._typography || {};
+    settings._typography['word-spacing'] = parseValue(val);
+  },
+  'list-style': (val, settings) => {
+    appendCustomCss(settings, settings._cssClass || '%root%', 'list-style', val);
+  },
+  'list-style-type': (val, settings) => {
+    appendCustomCss(settings, settings._cssClass || '%root%', 'list-style-type', val);
+  },
+  'list-style-position': (val, settings) => {
+    appendCustomCss(settings, settings._cssClass || '%root%', 'list-style-position', val);
+  },
+  'list-style-image': (val, settings) => {
+    appendCustomCss(settings, settings._cssClass || '%root%', 'list-style-image', val);
   }
 };
 

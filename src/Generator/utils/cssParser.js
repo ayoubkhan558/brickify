@@ -17,6 +17,58 @@ import { transformsMappers } from '@generator/cssPropertyMappers/transforms';
 import { logger } from '@lib/logger';
 import * as csstree from 'css-tree';
 
+/**
+ * Intelligently appends a CSS property to settings._cssCustom, grouping by selector.
+ * @param {Object} settings - Bricks element/class settings object
+ * @param {string} selector - CSS selector (e.g., 'root', '.my-class')
+ * @param {string} prop - CSS property name
+ * @param {string} val - CSS property value
+ */
+export const appendCustomCss = (settings, selector, prop, val) => {
+  if (!settings._cssCustom) settings._cssCustom = '';
+  
+  const normalizedSelector = selector || 'root';
+  const escapedSelector = normalizedSelector.replace(/\./g, '\\.');
+  const fullSelector = (escapedSelector === 'root' || escapedSelector === ':root' || escapedSelector === '%root%' || escapedSelector.startsWith('#')) 
+    ? escapedSelector 
+    : `.${escapedSelector}`;
+
+  // Find if a block for this selector already exists
+  // We look for the selector followed by { ... }
+  // We use a non-greedy match for the content to avoid capturing multiple blocks
+  const selectorEscapedForRegex = fullSelector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const blockRegex = new RegExp(`(${selectorEscapedForRegex})\\s*\\{\\s*([^}]*?)\\s*\\}`, 'g');
+  
+  let lastMatch = null;
+  let match;
+  while ((match = blockRegex.exec(settings._cssCustom)) !== null) {
+    lastMatch = {
+      index: match.index,
+      fullMatch: match[0],
+      selector: match[1],
+      content: match[2]
+    };
+  }
+
+  if (lastMatch) {
+    // Append to the existing block
+    const existingProps = lastMatch.content.trim();
+    const separator = existingProps && !existingProps.endsWith(';') ? ';' : '';
+    const updatedProps = `${existingProps}${separator}\n  ${prop}: ${val};`;
+    const updatedBlock = `${fullSelector} {\n  ${updatedProps}\n}`;
+    
+    // Replace the last occurrence of this block
+    settings._cssCustom = settings._cssCustom.substring(0, lastMatch.index) + 
+                         updatedBlock + 
+                         settings._cssCustom.substring(lastMatch.index + lastMatch.fullMatch.length);
+  } else {
+    // Add a new block
+    const separator = settings._cssCustom.trim() ? '\n\n' : '';
+    settings._cssCustom += `${separator}${fullSelector} {\n  ${prop}: ${val};\n}`;
+  }
+};
+
+
 
 // =====================================================================
 // Pseudo-Selector Utilities
@@ -127,6 +179,7 @@ export function mapCssPropertiesToBricksPseudo(propsObject, pseudo) {
       'line-height', 'letter-spacing', 'text-align', 'text-transform',
       'text-decoration', 'white-space', 'text-wrap', 'text-shadow',
       'word-spacing', 'text-indent', 'text-overflow', 'word-break',
+      'font-variant'
     ];
     if (typographyProps.includes(prop)) {
       const key = `_typography${pseudo}`;
@@ -314,6 +367,8 @@ export const getCssPropMappers = (settings) => {
     'overflow-x': layoutMiscMappers['overflow-x'],
     'overflow-y': layoutMiscMappers['overflow-y'],
     'visibility': layoutMiscMappers['visibility'],
+    'box-sizing': layoutMiscMappers['box-sizing'],
+    'animation': layoutMiscMappers['animation'],
     // End Layout Mappers
 
     // Typography
@@ -330,6 +385,12 @@ export const getCssPropMappers = (settings) => {
     'white-space': typographyMappers['white-space'],
     'text-wrap': typographyMappers['text-wrap'],
     'text-shadow': typographyMappers['text-shadow'],
+    'font-variant': typographyMappers['font-variant'],
+    'word-spacing': typographyMappers['word-spacing'],
+    'list-style': typographyMappers['list-style'],
+    'list-style-type': typographyMappers['list-style-type'],
+    'list-style-position': typographyMappers['list-style-position'],
+    'list-style-image': typographyMappers['list-style-image'],
 
     // Background
     'background-color': backgroundMappers['background-color'],
@@ -565,6 +626,7 @@ export function parseCssDeclarations(combinedProperties, className = '', variabl
     'padding', 'margin', 'background', 'color', 'font-size', 'border',
     'width', 'height', 'display', 'position', 'top', 'right', 'bottom', 'left', 'box-shadow',
     'opacity', 'overflow', 'transform', 'transition', 'filter', 'backdrop-filter',
+    'box-sizing', 'animation'
   ];
 
   Object.keys(customRules).forEach(property => {
@@ -574,7 +636,7 @@ export function parseCssDeclarations(combinedProperties, className = '', variabl
   });
 
   if (Object.keys(customRules).length > 0) {
-    const fallbackClassName = className || '%root%';
+    const fallbackClassName = className || 'root';
     const cssRules = Object.keys(customRules).map(prop => {
       const values = Object.keys(customRules[prop]);
       // Handle border property with rgba values properly
@@ -588,7 +650,9 @@ export function parseCssDeclarations(combinedProperties, className = '', variabl
     }).join(';\n  ');
 
     if (!settings._skipTransitionCustom) {
-      const selector = fallbackClassName === ':root' ? ':root' : `.${fallbackClassName.replace(/\./g, '\\.')}`;
+      const selector = (fallbackClassName === ':root' || fallbackClassName === 'root' || fallbackClassName.startsWith('#')) 
+        ? fallbackClassName 
+        : `.${fallbackClassName.replace(/\./g, '\\.')}`;
       settings._cssCustom = `${selector} {\n  ${cssRules};\n}`;
     }
     settings._skipTransitionCustom = false;
