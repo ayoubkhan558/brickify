@@ -535,20 +535,7 @@
    }
  }
 
-   &__title {
-     font-size: 0.75rem;
-     font-weight: 600;
-     // color: var(--color-text-dark);
-     text-transform: uppercase;
-     letter-spacing: 0.5px;
-   }
-
-   &__count {
-     font-size: 0.7rem;
-     color: var(--color-primary);
-     font-weight: 600;
-   }
- }
+    
 
  // Animation for copy button
  @keyframes fadeOut {
