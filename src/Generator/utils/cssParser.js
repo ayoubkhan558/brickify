@@ -16,6 +16,36 @@ import { transformsMappers } from '@generator/cssPropertyMappers/transforms';
 import { logger } from '@lib/logger';
 import * as csstree from 'css-tree';
 
+
+const expandMalformedDeclaration = (decl) => {
+  const parts = [];
+  let current = decl.trim();
+
+  while (current) {
+    const colonIndex = current.indexOf(':');
+    if (colonIndex === -1) {
+      break;
+    }
+
+    const prop = current.slice(0, colonIndex).trim();
+    let value = current.slice(colonIndex + 1).trim();
+
+    const nextPropMatch = value.match(/\s([a-z-]+)\s*:/i);
+    if (nextPropMatch && prop) {
+      const splitAt = nextPropMatch.index;
+      const validValue = value.slice(0, splitAt).trim();
+      parts.push(`${prop}: ${validValue}`);
+      current = value.slice(splitAt + 1).trim();
+      continue;
+    }
+
+    parts.push(`${prop}: ${value}`);
+    break;
+  }
+
+  return parts.length ? parts : [decl];
+};
+
 /**
  * Intelligently appends a CSS property to settings._cssCustom, grouping by selector.
  * @param {Object} settings - Bricks element/class settings object
@@ -583,7 +613,7 @@ export function parseCssDeclarations(combinedProperties, className = '', variabl
     // Handle CSS string
     const commentlessCss = combinedProperties.replace(/\/\*[\s\S]*?\*\//g, '');
     const cleanCss = commentlessCss.replace(/\s+/g, ' ').replace(/\s*([:;{}])\s*/g, '$1').trim();
-    const declarations = cleanCss.split(';').filter(Boolean);
+    const declarations = cleanCss.split(';').filter(Boolean).flatMap(expandMalformedDeclaration);
 
     declarations.forEach(decl => {
       if (!decl.trim()) return;
