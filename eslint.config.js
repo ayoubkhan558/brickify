@@ -53,4 +53,11 @@ export default [
       },
     },
   }
+,
+  {
+    files: ['src/contexts/AppContext.jsx', 'src/contexts/GeneratorContext.jsx'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  }
 ]
