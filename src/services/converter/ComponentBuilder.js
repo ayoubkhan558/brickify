@@ -41,7 +41,7 @@ export class ComponentBuilder {
      * @param {Object} options          - { autoDetect, manualProperties, componentRootIds }
      */
     buildComponent(standardResult, meta = {}, options = {}) {
-        const { content = [], globalClasses = [], globalElements = [] } = standardResult;
+        const { content = [], globalClasses = [] } = standardResult;
         if (!content.length) return standardResult;
 
         const autoDetect         = options.autoDetect !== false;

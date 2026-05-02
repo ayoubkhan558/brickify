@@ -10,7 +10,6 @@ import { layoutMiscMappers } from '@generator/cssPropertyMappers/layout-misc';
 import { typographyMappers } from '@generator/cssPropertyMappers/typography';
 import { backgroundMappers } from '@generator/cssPropertyMappers/background';
 import { borderBoxShadowMappers } from '@generator/cssPropertyMappers/boder-box-shadow';
-import { parseBoxShadow } from '@generator/cssPropertyMappers/mapperUtils';
 import { filterMappers, effectsMappers, transitionsMappers } from '@generator/cssPropertyMappers/filters-transitions';
 import { scrollSnapMappers } from '@generator/cssPropertyMappers/layout-scroll-snap';
 import { transformsMappers } from '@generator/cssPropertyMappers/transforms';
@@ -566,12 +565,12 @@ export function parseCssDeclarations(combinedProperties, className = '', variabl
       if (mapper) {
         try {
           mapper(resolvedValue, settings);
-        } catch (e) {
+        } catch {
           logger.error(`CSS property processing failed`, {
             file: 'cssParser.js',
             step: 'processStyles - mapper execution',
             feature: `CSS: ${prop} = "${resolvedValue}"`
-          }, e);
+          });
           if (!customRules[prop]) customRules[prop] = {};
           customRules[prop][resolvedValue] = true;
         }
@@ -605,12 +604,12 @@ export function parseCssDeclarations(combinedProperties, className = '', variabl
       if (mapper) {
         try {
           mapper(resolvedValue, settings);
-        } catch (e) {
+        } catch {
           logger.error(`CSS property processing failed`, {
             file: 'cssParser.js',
             step: 'processInlineStyles - mapper execution',
             feature: `CSS: ${prop} = "${resolvedValue}"`
-          }, e);
+          });
           if (!customRules[prop]) customRules[prop] = {};
           customRules[prop][resolvedValue] = true;
         }
@@ -691,11 +690,11 @@ export function matchCSSSelectors(element, cssMap) {
   const elementMatchesBase = (baseSelector) => {
     try {
       return element.matches(baseSelector);
-    } catch (e) {
+    } catch {
       try {
         const matchingElements = doc.querySelectorAll(baseSelector);
         return Array.from(matchingElements).includes(element);
-      } catch (err) {
+      } catch {
         return false;
       }
     }
@@ -710,7 +709,7 @@ export function matchCSSSelectors(element, cssMap) {
       const pseudoParsed = parsePseudoFromSelector(selector);
 
       if (pseudoParsed.pseudo) {
-        const { baseSelector, pseudo, pseudoRaw, pseudoType } = pseudoParsed;
+        const { baseSelector, pseudo } = pseudoParsed;
 
         // Check if the base selector matches the element
         matches = elementMatchesBase(baseSelector);
@@ -752,7 +751,7 @@ export function matchCSSSelectors(element, cssMap) {
           unmatchedSelectors.push({ selector, properties });
           return; // Don't add to combinedProperties
         }
-      } catch (e) {
+      } catch {
         // If selector is invalid for matches(), try alternative methods
         const selectorType = getSelectorType(selector);
 
@@ -770,7 +769,7 @@ export function matchCSSSelectors(element, cssMap) {
             if (doesMatch) {
               unmatchedSelectors.push({ selector, properties });
             }
-          } catch (err) {
+          } catch {
             // If still fails, skip this selector
           }
           return; // Don't add to combinedProperties
@@ -825,7 +824,7 @@ export function matchCSSSelectorsPerClass(element, cssMap, classList) {
   const elementMatches = (selector) => {
     try {
       return element.matches(selector);
-    } catch (e) {
+    } catch {
       return false;
     }
   };

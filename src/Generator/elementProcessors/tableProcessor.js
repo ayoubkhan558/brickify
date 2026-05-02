@@ -1,4 +1,3 @@
-import { generateId } from '@lib/bricks';
 import { getElementLabel } from '@lib/bricks';
 
 /**

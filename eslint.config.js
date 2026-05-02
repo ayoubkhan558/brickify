@@ -30,4 +30,27 @@ export default [
       ],
     },
   },
+  {
+    files: ['vite.config.js', 'vitest.config.js'],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
+  {
+    files: ['tests/**/*.js'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+        ...globals.browser,
+        describe: 'readonly',
+        it: 'readonly',
+        expect: 'readonly',
+        vi: 'readonly',
+        beforeEach: 'readonly',
+        afterEach: 'readonly',
+        beforeAll: 'readonly',
+        afterAll: 'readonly',
+      },
+    },
+  }
 ]

@@ -8,7 +8,7 @@ import { getElementLabel } from '@lib/bricks';
  * @param {Object} context - Optional context values (showNodeClass, etc.)
  * @returns {Object} The processed element
  */
-export const processVideoElement = (node, element, tag = 'video', context = {}) => {
+export const processVideoElement = (node, element, context = {}) => {
   const videoSrc = node.querySelector('source')?.getAttribute('src') || node.getAttribute('src') || '';
   const posterSrc = node.getAttribute('poster') || '';
 

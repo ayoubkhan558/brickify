@@ -32,7 +32,7 @@ const SimpleCodeEditor = ({
     const highlightCode = (code) => {
         try {
             return highlight(code, getPrismLanguage(language), language === 'html' ? 'markup' : language);
-        } catch (e) {
+        } catch {
             return code;
         }
     };

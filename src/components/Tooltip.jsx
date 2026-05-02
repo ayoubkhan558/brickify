@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { Tooltip as ReactTooltip } from 'react-tooltip';
 import 'react-tooltip/dist/react-tooltip.css';
 import './Tooltip.scss';
@@ -34,7 +34,8 @@ const Tooltip = ({
   ...rest
 }) => {
   // Generate a unique ID if none is provided
-  const tooltipId = id || `tooltip-${Math.random().toString(36).substr(2, 9)}`;
+  const generatedId = useId();
+  const tooltipId = id || `tooltip-${generatedId}`;
   
   // Handle click events
   const handleClick = (e) => {

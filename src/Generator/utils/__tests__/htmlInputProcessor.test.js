@@ -54,7 +54,7 @@ function stripAndExtract(html) {
     // 6. Collapse blank lines
     processed = processed.replace(/^\s*\n/gm, '').trim();
 
-  } catch (error) {
+  } catch {
     return { bodyContent: html, extractedCss: '', extractedJs: '' };
   }
 
@@ -293,5 +293,5 @@ if (failed === 0) {
   console.log('🎉 All tests passed!');
 } else {
   console.log('⚠️  Some tests failed — see above for details.');
-  process.exit(1);
+  globalThis.process?.exit?.(1);
 }

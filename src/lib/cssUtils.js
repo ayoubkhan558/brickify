@@ -301,7 +301,7 @@ export class AdvancedSelectorMatcher {
             hasPseudoElement: /::/.test(selector),      // ::before, ::after
             hasNot: /:not\(/.test(selector),            // :not(.class)
             hasNthChild: /:nth-child/.test(selector),   // :nth-child(2)
-            isComplex: /[>+~\[\]:]/.test(selector)       // Any complex selector
+            isComplex: /(>|\+|~|\[|\]|:)/.test(selector)       // Any complex selector
         };
     }
 
@@ -315,7 +315,7 @@ export class AdvancedSelectorMatcher {
             // Test with a dummy element
             document.createElement('div').matches(selector);
             return true;
-        } catch (error) {
+        } catch {
             return false;
         }
     }

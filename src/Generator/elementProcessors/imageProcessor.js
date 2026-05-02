@@ -10,7 +10,7 @@ import { getElementLabel } from '@lib/bricks';
  * @param {Object} context - Optional context values (showNodeClass, etc.)
  * @returns {Object} The processed element
  */
-export const processImageElement = (node, element, tag = 'img', context = {}) => {
+export const processImageElement = (node, element, context = {}) => {
   element.name = 'image';
   element.label = getElementLabel(node, 'Image', context);
 

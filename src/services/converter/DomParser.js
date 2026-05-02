@@ -33,12 +33,15 @@ export class DomParser {
      * @returns {Document} DOM document
      */
     parseInNode(html) {
-        const { JSDOM } = require('jsdom');
+        const JSDOM = globalThis.require?.('jsdom')?.JSDOM;
+        if (!JSDOM) {
+            throw new Error('jsdom is not available in this environment');
+        }
         const dom = new JSDOM(`<!DOCTYPE html>${html}`);
 
         // Set global Node if not defined
-        if (typeof global.Node === 'undefined') {
-            global.Node = dom.window.Node;
+        if (typeof globalThis.Node === 'undefined') {
+            globalThis.Node = dom.window.Node;
         }
 
         return dom.window.document;

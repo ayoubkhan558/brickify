@@ -58,7 +58,7 @@ const processElementClasses = (node, options) => {
  * @returns {Array} Array of processed elements
  */
 export const processNavElement = (node, options = {}) => {
-  const { context = {}, cssRulesMap, globalClasses, variables } = options;
+  const { context = {} } = options;
   const elements = []; // Array to collect all elements
 
   // Process CSS for the nav element itself
