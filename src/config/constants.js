@@ -116,27 +116,9 @@ export const NAV_CLASS_PATTERNS = [
     'top-nav', 'subnav', 'submenu', 'breadcrumb', 'pagination'
 ];
 
-// AI Provider types
-export const AI_PROVIDERS = {
-    GEMINI: 'gemini',
-    OPENAI: 'openai',
-    OPENROUTER: 'openrouter'
-};
+
+
 
 // Logging configuration
 export const ENABLE_LOGS = import.meta.env.VITE_ENABLE_LOGS === 'true';
 
-// AI Model identifiers
-export const AI_MODELS = {
-    GEMINI: {
-        FLASH: 'gemini-2.0-flash-exp',
-        PRO: 'gemini-1.5-pro'
-    },
-    OPENAI: {
-        GPT4_MINI: 'gpt-4o-mini',
-        GPT4: 'gpt-4o'
-    },
-    OPENROUTER: {
-        FREE: 'mistralai/mistral-7b-instruct:free'
-    }
-};
