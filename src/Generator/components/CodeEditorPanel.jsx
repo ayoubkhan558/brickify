@@ -3,7 +3,6 @@ import { RiJavascriptLine, RiHtml5Line } from 'react-icons/ri';
 import { FaCss3 } from 'react-icons/fa6';
 import Tooltip from '@components/Tooltip';
 import CodeEditor from '@generator/CodeEditor';
-import { QuickActionTags } from '@components/QuickActionTags';
 
 /**
  * Left-panel code editor area.
@@ -24,10 +23,6 @@ const CodeEditorPanel = ({
   // Action handlers
   handleCorrectCode,
   formatting,
-  // Quick actions
-  aiTemplates,
-  handleQuickAction,
-  isQuickGenerating,
   // Cursor tracking
   setActiveTagIndex,
 }) => {
@@ -40,9 +35,6 @@ const CodeEditorPanel = ({
       : activeTab === 'css'
       ? '/* Your CSS here… */'
       : '// Your JavaScript here…';
-
-  const hasCode =
-    activeTab === 'html' ? !!html.trim() : activeTab === 'css' ? !!css.trim() : !!js.trim();
 
   return (
     <div className="code-editor">
@@ -117,15 +109,6 @@ const CodeEditorPanel = ({
           />
         </div>
       </div>
-
-      {/* ── Quick Action Tags ── */}
-      <QuickActionTags
-        templates={aiTemplates.templates}
-        activeTab={activeTab}
-        hasCode={hasCode}
-        onActionClick={handleQuickAction}
-        isGenerating={isQuickGenerating}
-      />
     </div>
   );
 };

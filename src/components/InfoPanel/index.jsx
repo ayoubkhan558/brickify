@@ -1,40 +1,14 @@
 import React from 'react';
-import { FaQuestionCircle, FaExclamationTriangle, FaEnvelope, FaWhatsapp, FaInfoCircle, FaPaperPlane, FaSpinner, FaCog } from 'react-icons/fa';
+import { FaQuestionCircle, FaExclamationTriangle, FaEnvelope, FaWhatsapp, FaInfoCircle } from 'react-icons/fa';
 import './InfoPanel.scss';
 
 const InfoPanel = ({
     onTutorialOpen,
     onLimitationsOpen,
     onAboutOpen,
-    onAIPromptOpen,
-    onAISettingsOpen,
-    aiTemplates,
-    isQuickGenerating
 }) => {
     return (
         <aside className="panel-info">
-            <div className="panel__left">
-                <button
-                    onClick={onAIPromptOpen}
-                    className="button outline-secondary panel__btn panel__btn--ai"
-                    title="Open AI Assistant"
-                    style={{ minWidth: '150px' }}
-                >
-                    <FaPaperPlane size={16} />
-                    <span>Ask AI</span>
-                    <span className="beta">Beta</span>
-                    {isQuickGenerating && (
-                        <FaSpinner className="spinning" style={{ marginLeft: '4px' }} />
-                    )}
-                </button>
-                <button
-                    onClick={onAISettingsOpen}
-                    className="button secondary panel__btn panel__btn--settings"
-                    title="AI Settings"
-                >
-                    <FaCog size={16} />
-                </button>
-            </div>
             <div className="panel__right">
                 <button onClick={onTutorialOpen} className="button secondary panel__btn">
                     <FaQuestionCircle size={16} />

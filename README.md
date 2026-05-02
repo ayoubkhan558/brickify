@@ -1,6 +1,6 @@
 # Brickify - HTML/CSS/JS to Bricks Builder Converter
 
-A powerful web-based tool that converts HTML, CSS, and JavaScript code into Bricks Builder–compatible JSON structure. Designed for Bricks Builder users who want to quickly migrate existing templates or convert AI-generated code into ready-to-use Bricks elements.
+A powerful web-based tool that converts HTML, CSS, and JavaScript code into Bricks Builder–compatible JSON structure. Designed for Bricks Builder users who want to quickly migrate existing templates into ready-to-use Bricks elements.
 
 ## 🚀 Features
 
@@ -41,12 +41,6 @@ A powerful web-based tool that converts HTML, CSS, and JavaScript code into Bric
 | **Skip** | Ignores inline styles completely                          |
 | **Inline** | Preserves styles as inline attributes                   |
 | **Class** | Converts styles to Bricks global classes (recommended)   |
-
-### AI Code Generation
-Generate HTML/CSS code using AI providers:
-- **Google Gemini** – Fast and free tier available
-- **OpenAI** – GPT-4o-mini and other models
-- **OpenRouter** – Access to multiple free models
 
 ### Output Options
 - Toggle minified/pretty-printed JSON
@@ -89,14 +83,6 @@ Create **reusable Bricks components** with configurable properties:
 
 ---
 
-## AI Integration
-
-Generate code with the help of AI through multiple provider options:
-- **Google Gemini**: Fast and free with an API key.
-- **OpenRouter**: Free models with no rate limits.
-- **OpenAI**: GPT-4o-mini and other models available.
-
----
 
 ## Technology Stack
 
@@ -104,7 +90,6 @@ Generate code with the help of AI through multiple provider options:
 - **Styling**: Sass, CSS Modules
 - **Code Editor**: `@uiw/react-codemirror` for HTML/CSS editing
 - **Testing**: Vitest
-- **AI Integration**: OpenAI, Google Gemini, OpenRouter APIs
 
 ---
 
@@ -177,8 +162,6 @@ e2e/ # End-to-end tests
 - Pseudo-classes (:hover, :focus, :active, :visited, :disabled)
 - Pseudo-elements (::before, ::after)
 - SVG element support with classes
-- AI code generation integration
-- Multiple AI provider support
 - Native browser API selector matching (element.matches())
 - **Standalone form input auto-wrapping** – Automatically wraps standalone inputs in form elements
 - **Auto HTML cleanup** – Automatically strips `<html>`, `<head>`, `<body>` tags and extracts `<style>` and `<script>` content

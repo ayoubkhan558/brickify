@@ -11,8 +11,6 @@ import AboutModal from '@components/AboutModal/index';
 import TutorialModal from '@components/TutorialModal/index';
 import LimitationsModal from '@components/LimitationsModal/index';
 import InfoPanel from '@components/InfoPanel/index';
-import AISettings from '@components/AISettings/index';
-import AIPromptModal from '@components/AIPromptModal';
 
 import { useGenerator } from '@contexts/GeneratorContext';
 import Preview from './Preview';
@@ -20,7 +18,7 @@ import CodeEditorPanel from './CodeEditorPanel';
 import RightPanel from './RightPanel';
 import './GeneratorComponent.scss';
 
-import { useAIGeneration, useCodeFormatting, useClipboard, useAITemplates, useHtmlCorrect, useBricksOutput } from './hooks';
+import { useCodeFormatting, useClipboard, useHtmlCorrect, useBricksOutput } from './hooks';
 
 const GeneratorComponent = () => {
   const {
@@ -65,13 +63,10 @@ const GeneratorComponent = () => {
   const [isLimitationsOpen, setIsLimitationsOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [rightPanelView, setRightPanelView] = useState('layers');
-  const [isAIPromptOpen, setIsAIPromptOpen] = useState(false);
 
   // ── Custom hooks ────────────────────────────────────────────────────────────
   const formatting  = useCodeFormatting();
   const clipboard   = useClipboard();
-  const aiTemplates = useAITemplates();
-  const aiGeneration = useAIGeneration(activeTab, html, css, js, setHtml, setCss, setJs, aiTemplates);
 
   // HTML correct (strip structural tags, move style/script to tabs)
   const { handleHtmlChange, handleCorrectCode } = useHtmlCorrect({
@@ -113,14 +108,6 @@ const GeneratorComponent = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isDropdownOpen]);
 
-  // ── Quick AI action ──────────────────────────────────────────────────────────
-  const handleQuickAction = useCallback(async (templateId) => {
-    const template = aiTemplates.templates.find(t => t.id === templateId);
-    if (!template) return;
-    aiGeneration.setQuickPrompt(`Apply ${template.name} to the existing code`);
-    setTimeout(() => { aiGeneration.handleQuickGenerate(); }, 50);
-  }, [aiTemplates.templates, aiGeneration]);
-
   return (
     <div className="generator">
       {/* ── Header ── */}
@@ -153,9 +140,6 @@ const GeneratorComponent = () => {
                   setJs={setJs}
                   handleCorrectCode={handleCorrectCode}
                   formatting={formatting}
-                  aiTemplates={aiTemplates}
-                  handleQuickAction={handleQuickAction}
-                  isQuickGenerating={aiGeneration.isQuickGenerating}
                   setActiveTagIndex={setActiveTagIndex}
                 />
               </Panel>
@@ -213,20 +197,6 @@ const GeneratorComponent = () => {
         onTutorialOpen={() => setIsTutorialOpen(true)}
         onLimitationsOpen={() => setIsLimitationsOpen(true)}
         onAboutOpen={() => setIsAboutOpen(true)}
-        onAIPromptOpen={() => setIsAIPromptOpen(true)}
-        onAISettingsOpen={() => aiGeneration.setIsAISettingsOpen(true)}
-        aiTemplates={aiTemplates}
-        isQuickGenerating={aiGeneration.isQuickGenerating}
-      />
-
-      {/* ── AI Components ── */}
-      <AISettings isOpen={aiGeneration.isAISettingsOpen} onClose={() => aiGeneration.setIsAISettingsOpen(false)} />
-      <AIPromptModal
-        isOpen={isAIPromptOpen}
-        onClose={() => setIsAIPromptOpen(false)}
-        aiGeneration={aiGeneration}
-        aiTemplates={aiTemplates}
-        activeTab={activeTab}
       />
 
       {/* ── Info Modals ── */}

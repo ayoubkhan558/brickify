@@ -62,9 +62,6 @@ const TutorialModal = ({ isOpen, onClose }) => {
                             <li>
                                 <strong>Class Labels:</strong> Enable to use CSS class names as element labels in Bricks
                             </li>
-                            <li>
-                                <strong>AI Assistant:</strong> Use the "Ask AI" button to generate or modify code with AI
-                            </li>
                         </ul>
                     </div>
 
