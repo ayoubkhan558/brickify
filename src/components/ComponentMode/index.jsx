@@ -108,7 +108,7 @@ const ComponentMode = ({ output, componentInternals }) => {
   const propertiesToShow = componentAutoDetect ? activeDetectedProperties : activeManualProperties;
 
   // Debug logging (only in development)
-  if (process.env.NODE_ENV === 'development') {
+  if (import.meta.env.DEV) {
     console.log('ComponentMode Debug:', {
       activeComponentRootId,
       componentRootIds,

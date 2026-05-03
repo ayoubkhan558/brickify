@@ -1,10 +1,9 @@
 import { generateId } from '@lib/bricks';
 import { logger } from '@lib/logger';
-import { sanitizeClassName } from '@lib/helpers';
 import { getElementLabel } from '@lib/bricks';
 import { ALERT_CLASS_PATTERNS, CONTAINER_CLASS_PATTERNS } from '@config/constants';
-import { buildCssMap, parseCssDeclarations, matchCSSSelectors, matchCSSSelectorsPerClass, mapCssPropertiesToBricksPseudo, parsePseudoFromSelector, normalizePseudoSelector, appendCustomCss } from '@generator/utils/cssParser';
-import { getBricksFieldType, processFormField, processFormElement } from "@generator/elementProcessors/formProcessor"
+import { buildCssMap, parseCssDeclarations, matchCSSSelectors, matchCSSSelectorsPerClass, mapCssPropertiesToBricksPseudo, parsePseudoFromSelector, appendCustomCss } from '@generator/utils/cssParser';
+import { processFormElement } from "@generator/elementProcessors/formProcessor"
 import { processAudioElement } from '@generator/elementProcessors/audioProcessor';
 import { processVideoElement } from '@generator/elementProcessors/videoProcessor';
 import { processTableElement } from '@generator/elementProcessors/tableProcessor';
@@ -63,7 +62,7 @@ const handleInlineStyles = (node, element, globalClasses, variables = {}, option
       node.removeAttribute('style');
       break;
 
-    case 'class':
+    case 'class': {
       // Find the first global class for this element
       let targetClass = null;
       if (element.settings._cssGlobalClasses && element.settings._cssGlobalClasses.length > 0) {
@@ -112,8 +111,6 @@ const handleInlineStyles = (node, element, globalClasses, variables = {}, option
 
         // Parse inline styles and convert to custom CSS
         const styleDeclarations = styleAttr.split(';').filter(s => s.trim());
-        const formattedStyles = styleDeclarations.map(s => s.trim()).join(';\n  ');
-
         // Add to element's custom CSS or settings
         if (!element.settings._cssCustom) {
           element.settings._cssCustom = '';
@@ -137,6 +134,7 @@ const handleInlineStyles = (node, element, globalClasses, variables = {}, option
       // Remove the style attribute since we've processed it
       node.removeAttribute('style');
       break;
+    }
 
     default:
       logger.warn('Unknown inlineStyleHandling value:', options?.context?.inlineStyleHandling);
@@ -420,19 +418,19 @@ const domNodeToBricks = (node, cssRulesMap = {}, parentId = '0', globalClasses =
     element._skipChildren = true;
   }
   else if (['table', 'colgroup', 'col', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td'].includes(tag)) {
-    const processedElement = processTableElement(node, element, tag, options.context || {});
+    processTableElement(node, element, tag, options.context || {});
     // col elements have no children — respect _skipChildren set by processTableElement
     // Note: Don't return early for td/th here - let CSS processing happen first
   }
   else if (['ul', 'ol', 'li'].includes(tag)) {
-    const processedElement = processListElement(node, element, tag, options.context || {});
+    processListElement(node, element, tag, options.context || {});
     // Note: Don't return early here - let CSS processing happen first
   }
   else if (tag === 'audio') {
-    processAudioElement(node, element, tag, options.context || {});
+    processAudioElement(node, element, options.context || {});
   }
   else if (tag === 'video') {
-    processVideoElement(node, element, tag, options.context || {});
+    processVideoElement(node, element, options.context || {});
   }
   else if (tag === 'code') {
     // <code> HTML tag → Bricks custom code element (rendered inside parent, no noRoot)
@@ -543,7 +541,7 @@ const domNodeToBricks = (node, cssRulesMap = {}, parentId = '0', globalClasses =
     // Handle pseudo-elements for ID
     if (pseudoSelectors.length > 0) {
       let customCss = '';
-      pseudoSelectors.forEach(({ selector, properties, pseudo, baseSelector: psBase }) => {
+      pseudoSelectors.forEach(({ selector, properties, pseudo }) => {
         // Parse properties to object if needed
         const propsObject = typeof properties === 'object' ? properties
           : typeof properties === 'string'
@@ -748,9 +746,6 @@ const domNodeToBricks = (node, cssRulesMap = {}, parentId = '0', globalClasses =
             // Handle complex selectors (child >, attribute [], descendant, multiple, etc.)
             const isTagSelector = selector === tag;
             const isAttributeSelector = selector.startsWith('[') || selector.includes('[');
-            const isChildSelector = selector.includes('>');
-            const isDescendantSelector = selector.includes(' ') && !selector.includes('>');
-
             // Check if selector contains a class that matches this element
             const classMatches = selector.match(/\.([a-zA-Z0-9_-]+)/g);
             const containsMatchingClass = classMatches && classMatches.some(c =>
@@ -846,10 +841,13 @@ const convertHtmlToBricks = (html, css, options) => {
       const parser = new DOMParser();
       doc = parser.parseFromString(html, 'text/html');
     } else {
-      const { JSDOM } = require('jsdom');
+      const JSDOM = globalThis.require?.('jsdom')?.JSDOM;
+      if (!JSDOM) {
+        throw new Error('jsdom is not available in this environment');
+      }
       const dom = new JSDOM(`<!DOCTYPE html>${html}`);
       doc = dom.window.document;
-      if (typeof global.Node === 'undefined') global.Node = dom.window.Node;
+      if (typeof globalThis.Node === 'undefined') globalThis.Node = dom.window.Node;
     }
 
     const { cssMap, variables, rootStyles, keyframes, mediaQueries } = buildCssMap(css);

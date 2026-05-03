@@ -97,10 +97,10 @@ export const processFormField = (form, node, context = {}) => {
       break;
 
     case 'date':
-      field.dateFormat = type === 'datetime-local' ? 'Y-m-d\TH:i' :
+      field.dateFormat = type === 'datetime-local' ? 'Y-m-d\\TH:i' :
         type === 'time' ? 'H:i' :
           type === 'month' ? 'Y-m' :
-            type === 'week' ? 'Y-\WW' : 'Y-m-d';
+            type === 'week' ? 'Y-\\WW' : 'Y-m-d';
       break;
 
     case 'file':

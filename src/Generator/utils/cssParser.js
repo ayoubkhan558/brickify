@@ -10,12 +10,41 @@ import { layoutMiscMappers } from '@generator/cssPropertyMappers/layout-misc';
 import { typographyMappers } from '@generator/cssPropertyMappers/typography';
 import { backgroundMappers } from '@generator/cssPropertyMappers/background';
 import { borderBoxShadowMappers } from '@generator/cssPropertyMappers/boder-box-shadow';
-import { parseBoxShadow } from '@generator/cssPropertyMappers/mapperUtils';
 import { filterMappers, effectsMappers, transitionsMappers } from '@generator/cssPropertyMappers/filters-transitions';
 import { scrollSnapMappers } from '@generator/cssPropertyMappers/layout-scroll-snap';
 import { transformsMappers } from '@generator/cssPropertyMappers/transforms';
 import { logger } from '@lib/logger';
 import * as csstree from 'css-tree';
+
+
+const expandMalformedDeclaration = (decl) => {
+  const parts = [];
+  let current = decl.trim();
+
+  while (current) {
+    const colonIndex = current.indexOf(':');
+    if (colonIndex === -1) {
+      break;
+    }
+
+    const prop = current.slice(0, colonIndex).trim();
+    let value = current.slice(colonIndex + 1).trim();
+
+    const nextPropMatch = value.match(/\s([a-z-]+)\s*:/i);
+    if (nextPropMatch && prop) {
+      const splitAt = nextPropMatch.index;
+      const validValue = value.slice(0, splitAt).trim();
+      parts.push(`${prop}: ${validValue}`);
+      current = value.slice(splitAt + 1).trim();
+      continue;
+    }
+
+    parts.push(`${prop}: ${value}`);
+    break;
+  }
+
+  return parts.length ? parts : [decl];
+};
 
 /**
  * Intelligently appends a CSS property to settings._cssCustom, grouping by selector.
@@ -566,12 +595,12 @@ export function parseCssDeclarations(combinedProperties, className = '', variabl
       if (mapper) {
         try {
           mapper(resolvedValue, settings);
-        } catch (e) {
+        } catch {
           logger.error(`CSS property processing failed`, {
             file: 'cssParser.js',
             step: 'processStyles - mapper execution',
             feature: `CSS: ${prop} = "${resolvedValue}"`
-          }, e);
+          });
           if (!customRules[prop]) customRules[prop] = {};
           customRules[prop][resolvedValue] = true;
         }
@@ -584,7 +613,7 @@ export function parseCssDeclarations(combinedProperties, className = '', variabl
     // Handle CSS string
     const commentlessCss = combinedProperties.replace(/\/\*[\s\S]*?\*\//g, '');
     const cleanCss = commentlessCss.replace(/\s+/g, ' ').replace(/\s*([:;{}])\s*/g, '$1').trim();
-    const declarations = cleanCss.split(';').filter(Boolean);
+    const declarations = cleanCss.split(';').filter(Boolean).flatMap(expandMalformedDeclaration);
 
     declarations.forEach(decl => {
       if (!decl.trim()) return;
@@ -605,12 +634,12 @@ export function parseCssDeclarations(combinedProperties, className = '', variabl
       if (mapper) {
         try {
           mapper(resolvedValue, settings);
-        } catch (e) {
+        } catch {
           logger.error(`CSS property processing failed`, {
             file: 'cssParser.js',
             step: 'processInlineStyles - mapper execution',
             feature: `CSS: ${prop} = "${resolvedValue}"`
-          }, e);
+          });
           if (!customRules[prop]) customRules[prop] = {};
           customRules[prop][resolvedValue] = true;
         }
@@ -691,11 +720,11 @@ export function matchCSSSelectors(element, cssMap) {
   const elementMatchesBase = (baseSelector) => {
     try {
       return element.matches(baseSelector);
-    } catch (e) {
+    } catch {
       try {
         const matchingElements = doc.querySelectorAll(baseSelector);
         return Array.from(matchingElements).includes(element);
-      } catch (err) {
+      } catch {
         return false;
       }
     }
@@ -710,7 +739,7 @@ export function matchCSSSelectors(element, cssMap) {
       const pseudoParsed = parsePseudoFromSelector(selector);
 
       if (pseudoParsed.pseudo) {
-        const { baseSelector, pseudo, pseudoRaw, pseudoType } = pseudoParsed;
+        const { baseSelector, pseudo } = pseudoParsed;
 
         // Check if the base selector matches the element
         matches = elementMatchesBase(baseSelector);
@@ -752,7 +781,7 @@ export function matchCSSSelectors(element, cssMap) {
           unmatchedSelectors.push({ selector, properties });
           return; // Don't add to combinedProperties
         }
-      } catch (e) {
+      } catch {
         // If selector is invalid for matches(), try alternative methods
         const selectorType = getSelectorType(selector);
 
@@ -770,7 +799,7 @@ export function matchCSSSelectors(element, cssMap) {
             if (doesMatch) {
               unmatchedSelectors.push({ selector, properties });
             }
-          } catch (err) {
+          } catch {
             // If still fails, skip this selector
           }
           return; // Don't add to combinedProperties
@@ -825,7 +854,7 @@ export function matchCSSSelectorsPerClass(element, cssMap, classList) {
   const elementMatches = (selector) => {
     try {
       return element.matches(selector);
-    } catch (e) {
+    } catch {
       return false;
     }
   };

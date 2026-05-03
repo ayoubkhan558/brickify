@@ -9,7 +9,7 @@ import { getLinkSettings } from '@generator/elementProcessors/linkUtils';
  * @param {Object} context - Optional context values (showNodeClass, etc.)
  * @returns {Object} The processed element
  */
-export const processLinkElement = (node, element, tag = 'a', context = {}) => {
+export const processLinkElement = (node, element, context = {}) => {
   const hasElementChildren = Array.from(node.children).length > 0;
 
   if (hasElementChildren) {

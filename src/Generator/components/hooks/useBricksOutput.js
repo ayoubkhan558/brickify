@@ -79,7 +79,7 @@ export function useBricksOutput({
     showNodeClass, mergeNonClassSelectors,
     componentMode, componentAutoDetect,
     componentMeta, componentManualProperties, componentRootIds,
-    // setOutput is intentionally omitted — it is a stable useState setter
+    setOutput,
   ]);
 
   return { componentInternals };

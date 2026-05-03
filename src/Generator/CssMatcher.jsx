@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import * as csstree from 'css-tree';
+import logger from '@lib/logger';
 
 const CSSHTMLAnalyzer = () => {
   const [htmlInput, setHtmlInput] = useState(`
@@ -71,8 +72,6 @@ const CSSHTMLAnalyzer = () => {
 
 `);
 
-  const [analysis, setAnalysis] = useState([]);
-
   // Use css-tree for proper CSS parsing
   const parseCSS = (cssString) => {
     const selectors = [];
@@ -124,7 +123,7 @@ const CSSHTMLAnalyzer = () => {
     return properties;
   };
 
-  const analyzeElements = () => {
+  const analyzeElements = useCallback(() => {
     try {
       const parser = new DOMParser();
       const doc = parser.parseFromString(htmlInput, 'text/html');
@@ -154,7 +153,7 @@ const CSSHTMLAnalyzer = () => {
               // Merge properties (later selectors override earlier ones)
               Object.assign(elementInfo.appliedStyles, parsedProperties);
             }
-          } catch (error) {
+          } catch {
             // Invalid selector, skip it
           }
         });
@@ -165,15 +164,14 @@ const CSSHTMLAnalyzer = () => {
         }
       });
 
-      setAnalysis(elementAnalysis);
+      return elementAnalysis;
     } catch (error) {
       logger.error('Analysis error:', error);
+      return [];
     }
-  };
-
-  useEffect(() => {
-    analyzeElements();
   }, [htmlInput, cssInput]);
+
+  const analysis = useMemo(() => analyzeElements(), [analyzeElements]);
 
   const styles = {
     container: {

@@ -8,7 +8,7 @@ import { getElementLabel } from '@lib/bricks';
  * @param {Object} context - Optional context values (showNodeClass, etc.)
  * @returns {Object} The processed element
  */
-export const processButtonElement = (node, element, tag = 'button', context = {}) => {
+export const processButtonElement = (node, element, context = {}) => {
   const textContent = node.textContent.trim();
   const hasSvg = node.querySelector('svg') !== null;
 

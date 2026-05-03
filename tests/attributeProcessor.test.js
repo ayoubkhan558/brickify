@@ -3,7 +3,7 @@
  * Tests the processAttributes function for handling HTML attributes
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { processAttributes } from '../src/Generator/elementProcessors/attributeProcessor.js';
 
 describe('Attribute Processor', () => {

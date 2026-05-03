@@ -244,8 +244,6 @@ describe('buildCssMap pseudo normalization', () => {
 });
 
 describe('matchCSSSelectors with pseudo-selectors', () => {
-  let testDoc;
-
   function createDoc(html) {
     const parser = new DOMParser();
     return parser.parseFromString(html, 'text/html');

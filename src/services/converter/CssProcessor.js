@@ -6,6 +6,7 @@
 
 import { buildCssMap, matchCSSSelectors, parseCssDeclarations } from '../../Generator/utils/cssParser.js';
 import { AdvancedSelectorMatcher } from '@lib/cssUtils';
+import logger from '@lib/logger';
 
 export class CssProcessor {
     constructor() {

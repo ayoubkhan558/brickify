@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 
 import { FaCss3, FaCode, FaCopy, FaPlay, FaCheck, FaDownload, FaChevronDown, FaPaperPlane, FaSpinner } from 'react-icons/fa6';
@@ -38,13 +38,8 @@ const GeneratorComponent = () => {
     setJs,
     output,
     setOutput,
-    isDarkMode,
     isMinified,
-    toggleMinified,
     includeJs,
-    setIncludeJs,
-    showJsonPreview,
-    setShowJsonPreview,
     // Component mode
     componentMode,
     componentAutoDetect,
@@ -53,7 +48,6 @@ const GeneratorComponent = () => {
     setComponentManualProperties,
     componentRootIds,
     setComponentRootIds,
-    activeComponentRootId,
     setActiveComponentRootId,
   } = useGenerator();
 

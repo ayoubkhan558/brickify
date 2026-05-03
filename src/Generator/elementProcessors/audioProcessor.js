@@ -8,7 +8,7 @@ import { getElementLabel } from '@lib/bricks';
  * @param {Object} context - Optional context values (showNodeClass, etc.)
  * @returns {Object} The processed element
  */
-export const processAudioElement = (node, element, tag = 'audio', context = {}) => {
+export const processAudioElement = (node, element, context = {}) => {
   const audioSrc = node.querySelector('source')?.getAttribute('src') || node.getAttribute('src') || '';
 
   element.name = 'audio';

@@ -8,7 +8,7 @@ import { getElementLabel } from '@lib/bricks';
  * @param {Object} context - Optional context values (showNodeClass, etc.)
  * @returns {Object} The processed element
  */
-export const processSvgElement = (node, element, tag = 'svg', context = {}) => {
+export const processSvgElement = (node, element, context = {}) => {
   element.name = 'svg';
   element.label = getElementLabel(node, 'SVG', context);
   element.settings.source = 'code';

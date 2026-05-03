@@ -5,7 +5,6 @@ const CodeEditor = ({
   value,
   onChange,
   language = 'html',
-  placeholder = '',
   className = '',
   height = '100%',
   readOnly = false,

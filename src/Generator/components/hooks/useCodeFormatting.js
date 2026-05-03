@@ -89,7 +89,7 @@ export const useCodeFormatting = () => {
         try {
             const parsed = JSON.parse(jsonString);
             return JSON.stringify(parsed, null, 2);
-        } catch (error) {
+        } catch {
             return jsonString; // Return as-is if parsing fails
         }
     }, []);
